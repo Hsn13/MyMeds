@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- Chart.js via CDN — realistic choice for a learning project -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <%- include('navbar') %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>📊 Dashboard</h1>
+    </div>
+
+    <!-- ── Stat Cards Row ── -->
+    <div class="stats-grid">
+      <div class="stat-card stat-card-primary">
+        <span class="stat-icon">🎯</span>
+        <div class="stat-content">
+          <span class="stat-value"><%= adherenceScore %>%</span>
+          <span class="stat-label">Adherence Score</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">💊</span>
+        <div class="stat-content">
+          <span class="stat-value"><%= activeMedCount %></span>
+          <span class="stat-label">Active Medications</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🔥</span>
+        <div class="stat-content">
+          <span class="stat-value"><%= missedDoseStreak %></span>
+          <span class="stat-label">Missed-Dose Streak (days)</span>
+        </div>
+      </div>
+      <div class="stat-card stat-card-warning">
+        <span class="stat-icon">⚠️</span>
+        <div class="stat-content">
+          <% if (mostMissedMedication) { %>
+            <span class="stat-value" style="font-size:1.1rem;"><%= mostMissedMedication.name %></span>
+            <span class="stat-label">Most Missed (<%= mostMissedMedication.missCount %> times)</span>
+          <% } else { %>
+            <span class="stat-value">—</span>
+            <span class="stat-label">Most Missed Med</span>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Charts Row ── -->
+    <div class="charts-grid">
+      <!-- 1. Adherence % Line Chart (last 7 days) -->
+      <div class="chart-card chart-card-wide">
+        <h3>Adherence Trend (Last 7 Days)</h3>
+        <canvas id="adherenceChart"></canvas>
+      </div>
+
+      <!-- 2. Taken vs Missed vs Late Pie Chart -->
+      <div class="chart-card">
+        <h3>Intake Breakdown</h3>
+        <canvas id="pieChart"></canvas>
+      </div>
+
+      <!-- 3. Side Effect Severity Bar Chart -->
+      <div class="chart-card">
+        <h3>Side Effects by Severity</h3>
+        <canvas id="severityChart"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <!-- Data block: EJS renders server variables into plain JSON here.
+       Kept in its own script tag so the Chart.js logic below is pure JS
+       and won't trigger "Expression expected" in your linter. -->
+  <script>
+    const weeklyLabels  = <%- JSON.stringify(weeklyTrend.map(d => d.label)) %>;
+    const weeklyData    = <%- JSON.stringify(weeklyTrend.map(d => d.adherence)) %>;
+    const pieData       = <%- JSON.stringify(pieData) %>;
+    const severityData  = <%- JSON.stringify(severityData) %>;
+  </script>
+
+  <!-- Chart logic: pure JS — no EJS tags, linter stays happy -->
+  <script>
+    // ── 1. Adherence Line Chart ──────────────────────────────────────────────
+    new Chart(document.getElementById('adherenceChart'), {
+      type: 'line',
+      data: {
+        labels: weeklyLabels,
+        datasets: [{
+          label: 'Adherence %',
+          data: weeklyData,
+          borderColor: '#3498db',
+          backgroundColor: 'rgba(52, 152, 219, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointBackgroundColor: '#3498db',
+          pointRadius: 5,
+          spanGaps: true  // skip null values (days with no logs)
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            title: { display: true, text: 'Adherence %' },
+            ticks: { callback: v => v + '%' }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.parsed.y !== null ? ctx.parsed.y + '%' : 'No data'
+            }
+          }
+        }
+      }
+    });
+
+    // ── 2. Pie Chart: Taken / Missed / Late ──────────────────────────────────
+    new Chart(document.getElementById('pieChart'), {
+      type: 'pie',
+      data: {
+        labels: ['Taken', 'Missed', 'Late'],
+        datasets: [{
+          data: [pieData.taken, pieData.missed, pieData.late],
+          backgroundColor: ['#27ae60', '#e74c3c', '#f39c12'],
+          borderColor: '#fff',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+
+    // ── 3. Severity Bar Chart ─────────────────────────────────────────────────
+    new Chart(document.getElementById('severityChart'), {
+      type: 'bar',
+      data: {
+        labels: ['1 - Mild', '2 - Light', '3 - Moderate', '4 - Heavy', '5 - Severe'],
+        datasets: [{
+          label: 'Count',
+          data: severityData,
+          backgroundColor: ['#27ae60', '#f1c40f', '#f39c12', '#e67e22', '#e74c3c'],
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 },
+            title: { display: true, text: 'Number of Reports' }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

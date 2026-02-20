@@ -1,14 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyMeds — Medication Tracker</title>
+  <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <%- include('navbar') %>
+  <%- include('navbar') %>
 
-    <h1>Welcome to my Website</h1>
+  <main class="main-content">
+    <% if (!user) { %>
+      <!-- Landing page for guests -->
+      <section class="hero">
+        <h1>🩺 MyMeds</h1>
+        <p class="hero-subtitle">Track your medications, log your adherence, and monitor side effects — all in one place.</p>
+        <div class="hero-buttons">
+          <a href="/auth/sign-up" class="btn btn-primary">Get Started</a>
+          <a href="/auth/sign-in" class="btn btn-secondary">Sign In</a>
+        </div>
+      </section>
 
+      <section class="disclaimer">
+        <h3>⚠️ Medical Disclaimer</h3>
+        <p>
+          This application is for <strong>tracking and organizational purposes only</strong>.
+          It does not provide medical advice, diagnosis, or treatment recommendations.
+          Always consult your healthcare provider before making any decisions about your medications.
+        </p>
+      </section>
+    <% } else { %>
+      <!-- Dashboard entry for logged-in patients -->
+      <section class="hero">
+        <h1>Welcome back, <%= user.name %>!</h1>
+        <p class="hero-subtitle">What would you like to do today?</p>
+      </section>
+
+      <section class="quick-actions">
+        <a href="/dashboard" class="card quick-card">
+          <span class="card-icon">📊</span>
+          <h3>Dashboard</h3>
+          <p>View your adherence stats and charts</p>
+        </a>
+        <a href="/medications" class="card quick-card">
+          <span class="card-icon">💊</span>
+          <h3>Medications</h3>
+          <p>Manage your medication list</p>
+        </a>
+        <a href="/intake" class="card quick-card">
+          <span class="card-icon">📅</span>
+          <h3>Log Intake</h3>
+          <p>Record today's doses</p>
+        </a>
+        <a href="/side-effects" class="card quick-card">
+          <span class="card-icon">⚠️</span>
+          <h3>Side Effects</h3>
+          <p>Report and track side effects</p>
+        </a>
+      </section>
+    <% } %>
+  </main>
 </body>
 </html>

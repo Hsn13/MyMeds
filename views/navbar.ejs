@@ -1,10 +1,28 @@
-<div>
-    <% if (user){ %>
-    <a href="/auth/sign-out">Logout</a>
-
-    <% } else{ %>
-    <a href="/auth/sign-up">Sign up</a>
-    <a href="/auth/sign-in">Login</a>
-
+<nav class="navbar">
+  <div class="navbar-brand">
+    <a href="/">🩺 MyMeds</a>
+  </div>
+  <div class="navbar-links">
+    <% if (user) { %>
+      <% if (user.role === "patient") { %>
+        <a href="/">Home</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/medications">Medications</a>
+        <a href="/intake">Intake Log</a>
+        <a href="/side-effects">Side Effects</a>
+      <% } %>
+      <% if (user.role === "clinician") { %>
+        <a href="/clinician/patients">My Patients</a>
+      <% } %>
+      <div class="navbar-user">
+        <span class="navbar-username"><%= user.name %> (<%= user.role %>)</span>
+        <a href="/auth/profile">Profile</a>
+        <a href="/auth/sign-out">Sign Out</a>
+      </div>
+    <% } else { %>
+      <a href="/">Home</a>
+      <a href="/auth/sign-in">Sign In</a>
+      <a href="/auth/sign-up">Sign Up</a>
     <% } %>
-</div>
+  </div>
+</nav>

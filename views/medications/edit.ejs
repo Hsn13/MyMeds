@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Medication — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Edit Medication</h1>
+      <a href="/medications" class="btn btn-secondary">← Back to Medications</a>
+    </div>
+
+    <div class="form-container">
+      <form action="/medications/<%= medication._id %>?_method=PUT" method="POST">
+        <div class="form-group">
+          <label for="name">Medication Name <span class="required">*</span></label>
+          <input type="text" name="name" id="name" value="<%= medication.name %>" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="dosage">Dosage <span class="required">*</span></label>
+            <input type="text" name="dosage" id="dosage" value="<%= medication.dosage %>" required>
+          </div>
+          <div class="form-group">
+            <label for="frequency">Frequency <span class="required">*</span></label>
+            <select name="frequency" id="frequency" required>
+              <option value="Once daily" <%= medication.frequency === 'Once daily' ? 'selected' : '' %>>Once daily</option>
+              <option value="Twice daily" <%= medication.frequency === 'Twice daily' ? 'selected' : '' %>>Twice daily</option>
+              <option value="Three times daily" <%= medication.frequency === 'Three times daily' ? 'selected' : '' %>>Three times daily</option>
+              <option value="Every 8 hours" <%= medication.frequency === 'Every 8 hours' ? 'selected' : '' %>>Every 8 hours</option>
+              <option value="Every 12 hours" <%= medication.frequency === 'Every 12 hours' ? 'selected' : '' %>>Every 12 hours</option>
+              <option value="As needed" <%= medication.frequency === 'As needed' ? 'selected' : '' %>>As needed</option>
+              <option value="Weekly" <%= medication.frequency === 'Weekly' ? 'selected' : '' %>>Weekly</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="startDate">Start Date <span class="required">*</span></label>
+            <input type="date" name="startDate" id="startDate" value="<%= medication.startDate.toISOString().split('T')[0] %>" required>
+          </div>
+          <div class="form-group">
+            <label for="endDate">End Date <span class="form-hint">(leave blank if ongoing)</span></label>
+            <input type="date" name="endDate" id="endDate" value="<%= medication.endDate ? medication.endDate.toISOString().split('T')[0] : '' %>">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="instructions">Instructions</label>
+          <textarea name="instructions" id="instructions" rows="3"><%= medication.instructions %></textarea>
+        </div>
+
+        <!-- isActive toggle — allows reactivation of soft-deleted meds -->
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" name="isActive" value="true" <%= medication.isActive ? 'checked' : '' %>>
+            Mark as Active
+          </label>
+          <small>Uncheck to deactivate (soft delete). The medication will be hidden from your main list but all history is preserved.</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <a href="/medications/<%= medication._id %>" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

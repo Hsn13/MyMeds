@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intake Log — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>📅 Intake Log</h1>
+    </div>
+
+    <!-- Date Navigation -->
+    <div class="date-nav">
+      <%
+        // Calculate prev/next day strings
+        const currentDate = new Date(selectedDate);
+        const prevDate = new Date(currentDate);
+        prevDate.setUTCDate(prevDate.getUTCDate() - 1);
+        const nextDate = new Date(currentDate);
+        nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+        const prevStr = prevDate.toISOString().split('T')[0];
+        const nextStr = nextDate.toISOString().split('T')[0];
+        const selectedStr = selectedDate.toISOString().split('T')[0];
+        const todayStr = new Date().toISOString().split('T')[0];
+        const isToday = selectedStr === todayStr;
+      %>
+      <a href="/intake?date=<%= prevStr %>" class="btn btn-sm btn-secondary">← Prev</a>
+      <span class="date-display">
+        <%= selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %>
+        <% if (isToday) { %><span class="badge badge-active">Today</span><% } %>
+      </span>
+      <a href="/intake?date=<%= nextStr %>" class="btn btn-sm btn-secondary">Next →</a>
+      <% if (!isToday) { %>
+        <a href="/intake" class="btn btn-sm btn-primary">Today</a>
+      <% } %>
+    </div>
+
+    <% if (medications.length === 0) { %>
+      <div class="empty-state">
+        <p>You have no active medications to log.</p>
+        <a href="/medications/new" class="btn btn-primary">Add a Medication</a>
+      </div>
+    <% } else { %>
+      <div class="intake-list">
+        <% medications.forEach(med => { %>
+          <div class="intake-card">
+            <div class="intake-card-header">
+              <h3><%= med.name %></h3>
+              <span class="intake-dosage"><%= med.dosage %> — <%= med.frequency %></span>
+            </div>
+            <div class="intake-card-body">
+              <% if (logMap[med._id.toString()]) { %>
+                <%
+                  const log = logMap[med._id.toString()];
+                %>
+                <div class="intake-status">
+                  <% if (log.status === 'taken') { %>
+                    <span class="badge badge-taken">✓ Taken</span>
+                  <% } else if (log.status === 'missed') { %>
+                    <span class="badge badge-missed">✗ Missed</span>
+                  <% } else if (log.status === 'late') { %>
+                    <span class="badge badge-late">⏰ Late</span>
+                  <% } %>
+                  <% if (log.notes) { %>
+                    <span class="intake-notes">— <%= log.notes %></span>
+                  <% } %>
+                </div>
+                <div class="intake-actions">
+                  <a href="/intake/<%= log._id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
+                  <form action="/intake/<%= log._id %>?_method=DELETE" method="POST" style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this log entry?')">Delete</button>
+                  </form>
+                </div>
+              <% } else { %>
+                <!-- No log exists yet — quick log buttons -->
+                <div class="quick-log-buttons">
+                  <a href="/intake/new?medicationId=<%= med._id %>&date=<%= selectedDate.toISOString().split('T')[0] %>" class="btn btn-sm btn-taken">Log Entry</a>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

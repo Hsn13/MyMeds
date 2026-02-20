@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= medication.name %> — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1><%= medication.name %></h1>
+      <div class="header-actions">
+        <a href="/medications/<%= medication._id %>/edit" class="btn btn-secondary">Edit</a>
+        <a href="/medications" class="btn btn-secondary">← Back</a>
+      </div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-status">
+        <% if (medication.isActive) { %>
+          <span class="badge badge-active">Active</span>
+        <% } else { %>
+          <span class="badge badge-inactive">Inactive</span>
+        <% } %>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Dosage</span>
+          <span class="detail-value"><%= medication.dosage %></span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Frequency</span>
+          <span class="detail-value"><%= medication.frequency %></span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Start Date</span>
+          <span class="detail-value"><%= medication.startDate.toLocaleDateString('en-US') %></span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">End Date</span>
+          <span class="detail-value"><%= medication.endDate ? medication.endDate.toLocaleDateString('en-US') : 'Ongoing' %></span>
+        </div>
+        <% if (medication.instructions) { %>
+          <div class="detail-item detail-item-full">
+            <span class="detail-label">Instructions</span>
+            <span class="detail-value"><%= medication.instructions %></span>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Quick links to related data -->
+      <div class="detail-actions">
+        <a href="/intake/new?medicationId=<%= medication._id %>" class="btn btn-primary">📋 Log Intake</a>
+        <a href="/side-effects/new?medicationId=<%= medication._id %>" class="btn btn-secondary">⚠️ Report Side Effect</a>
+        <a href="/side-effects?medicationId=<%= medication._id %>" class="btn btn-secondary">View Side Effects</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

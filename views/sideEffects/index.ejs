@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Side Effects — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>⚠️ Side Effects</h1>
+      <a href="/side-effects/new<%= selectedMedicationId ? '?medicationId=' + selectedMedicationId : '' %>" class="btn btn-primary">+ Report Side Effect</a>
+    </div>
+
+    <!-- Filter by medication -->
+    <div class="filter-bar">
+      <label for="medFilter">Filter by medication:</label>
+      <select id="medFilter" onchange="window.location='/side-effects' + (this.value ? '?medicationId=' + this.value : '')">
+        <option value="" <%= !selectedMedicationId ? 'selected' : '' %>>All Medications</option>
+        <% medications.forEach(med => { %>
+          <option value="<%= med._id %>" <%= selectedMedicationId === med._id.toString() ? 'selected' : '' %>>
+            <%= med.name %> <%= med.isActive ? '' : '(Inactive)' %>
+          </option>
+        <% }); %>
+      </select>
+    </div>
+
+    <% if (sideEffects.length === 0) { %>
+      <div class="empty-state">
+        <p>No side effects reported<%= selectedMedicationId ? ' for this medication' : '' %>.</p>
+        <a href="/side-effects/new" class="btn btn-primary">Report a Side Effect</a>
+      </div>
+    <% } else { %>
+      <!-- Timeline layout -->
+      <div class="timeline">
+        <% sideEffects.forEach(se => { %>
+          <div class="timeline-item">
+            <div class="timeline-marker severity-<%= se.severity %>"></div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <h3><%= se.effect %></h3>
+                <span class="timeline-date"><%= se.startDate.toLocaleDateString('en-US') %><%= se.endDate ? ' – ' + se.endDate.toLocaleDateString('en-US') : ' – Ongoing' %></span>
+              </div>
+              <div class="timeline-meta">
+                <span class="badge severity-badge severity-badge-<%= se.severity %>">Severity: <%= se.severity %>/5</span>
+                <span class="timeline-med">💊 <%= se.medicationId.name %></span>
+              </div>
+              <% if (se.notes) { %>
+                <p class="timeline-notes"><%= se.notes %></p>
+              <% } %>
+              <div class="timeline-actions">
+                <a href="/side-effects/<%= se._id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
+                <form action="/side-effects/<%= se._id %>?_method=DELETE" method="POST" style="display:inline;">
+                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this side effect report?')">Delete</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

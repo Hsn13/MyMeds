@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= sideEffect.effect %> — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1><%= sideEffect.effect %></h1>
+      <div class="header-actions">
+        <a href="/side-effects/<%= sideEffect._id %>/edit" class="btn btn-secondary">Edit</a>
+        <a href="/side-effects?medicationId=<%= sideEffect.medicationId._id %>" class="btn btn-secondary">← Back</a>
+      </div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Medication</span>
+          <span class="detail-value">💊 <%= sideEffect.medicationId.name %></span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Severity</span>
+          <span class="detail-value">
+            <span class="badge severity-badge severity-badge-<%= sideEffect.severity %>">
+              <%= sideEffect.severity %>/5
+            </span>
+          </span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Started</span>
+          <span class="detail-value"><%= sideEffect.startDate.toLocaleDateString('en-US') %></span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Ended</span>
+          <span class="detail-value"><%= sideEffect.endDate ? sideEffect.endDate.toLocaleDateString('en-US') : 'Ongoing' %></span>
+        </div>
+        <% if (sideEffect.notes) { %>
+          <div class="detail-item detail-item-full">
+            <span class="detail-label">Notes</span>
+            <span class="detail-value"><%= sideEffect.notes %></span>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

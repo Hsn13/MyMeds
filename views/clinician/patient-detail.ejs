@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= patient.name %> — MyMeds (Clinician View)</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Patient: <%= patient.name %></h1>
+      <a href="/clinician/patients" class="btn btn-secondary">← Back to Patients</a>
+    </div>
+
+    <!-- Patient Info + Adherence Score -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-icon">👤</span>
+        <div class="stat-content">
+          <span class="stat-value" style="font-size:1.1rem;"><%= patient.username %></span>
+          <span class="stat-label"><%= patient.email %></span>
+        </div>
+      </div>
+      <div class="stat-card stat-card-primary">
+        <span class="stat-icon">🎯</span>
+        <div class="stat-content">
+          <span class="stat-value"><%= adherenceScore %>%</span>
+          <span class="stat-label">Adherence Score</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">💊</span>
+        <div class="stat-content">
+          <span class="stat-value"><%= medications.length %></span>
+          <span class="stat-label">Total Medications</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">⚠️</span>
+        <div class="stat-content">
+          <span class="stat-value"><%= sideEffects.length %></span>
+          <span class="stat-label">Side Effects Reported</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Medications Table (Read Only) -->
+    <section class="clinician-section">
+      <h2>💊 Medications</h2>
+      <% if (medications.length === 0) { %>
+        <p class="empty-hint">No medications on record.</p>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Dosage</th>
+                <th>Frequency</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% medications.forEach(med => { %>
+                <tr class="<%= med.isActive ? '' : 'row-inactive' %>">
+                  <td><%= med.name %></td>
+                  <td><%= med.dosage %></td>
+                  <td><%= med.frequency %></td>
+                  <td><%= med.startDate.toLocaleDateString('en-US') %></td>
+                  <td><%= med.endDate ? med.endDate.toLocaleDateString('en-US') : 'Ongoing' %></td>
+                  <td>
+                    <% if (med.isActive) { %>
+                      <span class="badge badge-active">Active</span>
+                    <% } else { %>
+                      <span class="badge badge-inactive">Inactive</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <!-- Recent Intake Logs (Read Only) -->
+    <section class="clinician-section">
+      <h2>📅 Recent Intake Logs</h2>
+      <% if (intakeLogs.length === 0) { %>
+        <p class="empty-hint">No intake logs on record.</p>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Medication</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% intakeLogs.forEach(log => { %>
+                <tr>
+                  <td><%= log.medicationId.name %></td>
+                  <td><%= log.date.toLocaleDateString('en-US') %></td>
+                  <td>
+                    <% if (log.status === 'taken') { %>
+                      <span class="badge badge-taken">✓ Taken</span>
+                    <% } else if (log.status === 'missed') { %>
+                      <span class="badge badge-missed">✗ Missed</span>
+                    <% } else { %>
+                      <span class="badge badge-late">⏰ Late</span>
+                    <% } %>
+                  </td>
+                  <td><%= log.notes || '—' %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <!-- Side Effects (Read Only) -->
+    <section class="clinician-section">
+      <h2>⚠️ Side Effects</h2>
+      <% if (sideEffects.length === 0) { %>
+        <p class="empty-hint">No side effects reported.</p>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Medication</th>
+                <th>Effect</th>
+                <th>Severity</th>
+                <th>Started</th>
+                <th>Ended</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% sideEffects.forEach(se => { %>
+                <tr>
+                  <td><%= se.medicationId.name %></td>
+                  <td><%= se.effect %></td>
+                  <td><span class="badge severity-badge severity-badge-<%= se.severity %>"><%= se.severity %>/5</span></td>
+                  <td><%= se.startDate.toLocaleDateString('en-US') %></td>
+                  <td><%= se.endDate ? se.endDate.toLocaleDateString('en-US') : 'Ongoing' %></td>
+                  <td><%= se.notes || '—' %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

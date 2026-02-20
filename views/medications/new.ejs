@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Medication — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Add a New Medication</h1>
+      <a href="/medications" class="btn btn-secondary">← Back to Medications</a>
+    </div>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <div class="form-container">
+      <form action="/medications" method="POST">
+        <div class="form-group">
+          <label for="name">Medication Name <span class="required">*</span></label>
+          <input type="text" name="name" id="name" required placeholder="e.g. Amoxicillin">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="dosage">Dosage <span class="required">*</span></label>
+            <input type="text" name="dosage" id="dosage" required placeholder="e.g. 500mg">
+          </div>
+          <div class="form-group">
+            <label for="frequency">Frequency <span class="required">*</span></label>
+            <select name="frequency" id="frequency" required>
+              <option value="" disabled selected>Select frequency</option>
+              <option value="Once daily">Once daily</option>
+              <option value="Twice daily">Twice daily</option>
+              <option value="Three times daily">Three times daily</option>
+              <option value="Every 8 hours">Every 8 hours</option>
+              <option value="Every 12 hours">Every 12 hours</option>
+              <option value="As needed">As needed</option>
+              <option value="Weekly">Weekly</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="startDate">Start Date <span class="required">*</span></label>
+            <input type="date" name="startDate" id="startDate" required>
+          </div>
+          <div class="form-group">
+            <label for="endDate">End Date <span class="form-hint">(leave blank if ongoing)</span></label>
+            <input type="date" name="endDate" id="endDate">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="instructions">Instructions</label>
+          <textarea name="instructions" id="instructions" rows="3" placeholder="e.g. Take with food. Avoid alcohol."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Add Medication</button>
+          <a href="/medications" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+
+  <main class="main-content">
+    <div class="auth-container">
+      <h1>Edit Profile</h1>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-error"><%= error %></div>
+      <% } %>
+
+      <form action="/auth/profile" method="POST">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" value="<%= profileUser.username %>" disabled class="input-disabled">
+          <small>Username cannot be changed.</small>
+        </div>
+        <div class="form-group">
+          <label>Role</label>
+          <input type="text" value="<%= profileUser.role %>" disabled class="input-disabled">
+          <small>Role cannot be changed after registration.</small>
+        </div>
+        <div class="form-group">
+          <label for="name">Full Name</label>
+          <input type="text" name="name" id="name" value="<%= profileUser.name %>" required>
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" name="email" id="email" value="<%= profileUser.email %>" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </form>
+
+      <hr>
+
+      <h3 style="color: #c0392b;">Danger Zone</h3>
+      <p>Deactivating your account will prevent you from signing in. This action can only be undone by an administrator.</p>
+      <form action="/auth/deactivate" method="POST">
+        <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to deactivate your account? This cannot be undone.')">
+          Deactivate Account
+        </button>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

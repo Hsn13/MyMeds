@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Side Effect — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Report a Side Effect</h1>
+      <a href="/side-effects" class="btn btn-secondary">← Back to Side Effects</a>
+    </div>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <div class="form-container">
+      <form action="/side-effects" method="POST">
+        <div class="form-group">
+          <label for="medicationId">Medication <span class="required">*</span></label>
+          <select name="medicationId" id="medicationId" required>
+            <option value="" disabled>Select a medication</option>
+            <% medications.forEach(med => { %>
+              <option value="<%= med._id %>" <%= selectedMedicationId && med._id.toString() === selectedMedicationId ? 'selected' : '' %>>
+                <%= med.name %> (<%= med.dosage %>)
+              </option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="effect">Side Effect <span class="required">*</span></label>
+          <input type="text" name="effect" id="effect" required placeholder="e.g. Nausea, Headache, Dizziness">
+        </div>
+        <div class="form-group">
+          <label for="severity">Severity <span class="required">*</span></label>
+          <div class="severity-selector">
+            <% for (let i = 1; i <= 5; i++) { %>
+              <label class="severity-option">
+                <input type="radio" name="severity" value="<%= i %>" required>
+                <span class="severity-label severity-label-<%= i %>"><%= i %></span>
+              </label>
+            <% } %>
+          </div>
+          <div class="severity-legend">
+            <span>1 = Mild</span>
+            <span>3 = Moderate</span>
+            <span>5 = Severe</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="startDate">Start Date <span class="required">*</span></label>
+            <input type="date" name="startDate" id="startDate" required value="<%= new Date().toISOString().split('T')[0] %>">
+          </div>
+          <div class="form-group">
+            <label for="endDate">End Date <span class="form-hint">(leave blank if ongoing)</span></label>
+            <input type="date" name="endDate" id="endDate">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="notes">Notes</label>
+          <textarea name="notes" id="notes" rows="3" placeholder="Describe when it started, what triggers it, etc."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Report Side Effect</button>
+          <a href="/side-effects" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

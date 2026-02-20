@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Side Effect — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Edit Side Effect</h1>
+      <a href="/side-effects?medicationId=<%= sideEffect.medicationId._id %>" class="btn btn-secondary">← Back</a>
+    </div>
+
+    <div class="form-container">
+      <form action="/side-effects/<%= sideEffect._id %>?_method=PUT" method="POST">
+        <!-- Medication is fixed -->
+        <div class="form-group">
+          <label>Medication</label>
+          <input type="text" value="<%= sideEffect.medicationId.name %>" disabled class="input-disabled">
+        </div>
+        <div class="form-group">
+          <label for="effect">Side Effect <span class="required">*</span></label>
+          <input type="text" name="effect" id="effect" value="<%= sideEffect.effect %>" required>
+        </div>
+        <div class="form-group">
+          <label for="severity">Severity <span class="required">*</span></label>
+          <div class="severity-selector">
+            <% for (let i = 1; i <= 5; i++) { %>
+              <label class="severity-option">
+                <input type="radio" name="severity" value="<%= i %>" <%= sideEffect.severity === i ? 'checked' : '' %> required>
+                <span class="severity-label severity-label-<%= i %>"><%= i %></span>
+              </label>
+            <% } %>
+          </div>
+          <div class="severity-legend">
+            <span>1 = Mild</span>
+            <span>3 = Moderate</span>
+            <span>5 = Severe</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="startDate">Start Date <span class="required">*</span></label>
+            <input type="date" name="startDate" id="startDate" value="<%= sideEffect.startDate.toISOString().split('T')[0] %>" required>
+          </div>
+          <div class="form-group">
+            <label for="endDate">End Date <span class="form-hint">(leave blank if ongoing)</span></label>
+            <input type="date" name="endDate" id="endDate" value="<%= sideEffect.endDate ? sideEffect.endDate.toISOString().split('T')[0] : '' %>">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="notes">Notes</label>
+          <textarea name="notes" id="notes" rows="3"><%= sideEffect.notes %></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <a href="/side-effects?medicationId=<%= sideEffect.medicationId._id %>" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

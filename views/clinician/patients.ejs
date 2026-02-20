@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Patients — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>👨‍⚕️ My Patients</h1>
+      <span class="page-subtitle">Read-only view of your assigned patients</span>
+    </div>
+
+    <% if (patients.length === 0) { %>
+      <div class="empty-state">
+        <p>No patients are currently assigned to you.</p>
+        <p class="empty-hint">Patients must be assigned to your account by an administrator.</p>
+      </div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% patients.forEach(patient => { %>
+              <tr>
+                <td><%= patient.name %></td>
+                <td><%= patient.username %></td>
+                <td><%= patient.email %></td>
+                <td>
+                  <a href="/clinician/patients/<%= patient._id %>" class="btn btn-sm btn-primary">View Details</a>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>
