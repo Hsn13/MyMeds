@@ -15,6 +15,10 @@
           <h1>Sign In</h1>
         </div>
 
+        <% if (locals.error) { %>
+          <div class="error-message"><%= error %></div>
+        <% } %>
+
         <form action="/auth/sign-in" method="POST">
           <div class="form-group">
             <label for="username">Username</label>
@@ -26,9 +30,7 @@
             <input type="password" name="password" id="password" required />
           </div>
 
-          <button type="submit" class="btn btn-primary btn-full">
-            Sign In
-          </button>
+          <button type="submit" class="btn btn-primary btn-full">Sign In</button>
         </form>
 
         <div class="auth-footer">
