@@ -5,40 +5,50 @@ const bcrypt = require("bcrypt");
 
 // ─── SIGN UP ─────────────────────────────────────────────────────────────────
 
-router.get("/sign-up", (req, res) => {
-  res.render("auth/sign-up.ejs");
+router.get("/sign-up", async (req, res) => {
+  try {
+    const clinicians = await User.find({
+      role: "clinician",
+      isActive: true,
+    }).sort({ name: 1 });
+    res.render("auth/sign-up.ejs", { clinicians });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error loading sign-up page.");
+  }
 });
 
 router.post("/sign-up", async (req, res) => {
   try {
     const { username, name, email, password, confirmPassword, role } = req.body;
 
+    // Helper to re-render with error + clinicians list
+    const renderError = async (error) => {
+      const clinicians = await User.find({
+        role: "clinician",
+        isActive: true,
+      }).sort({ name: 1 });
+      return res.render("auth/sign-up.ejs", { error, clinicians });
+    };
+
     // --- Validation ---
     if (!username || !name || !email || !password) {
-      return res.render("auth/sign-up.ejs", {
-        error: "All fields are required.",
-      });
+      return renderError("All fields are required.");
     }
 
     if (password !== confirmPassword) {
-      return res.render("auth/sign-up.ejs", {
-        error: "Password and Confirm Password must match.",
-      });
+      return renderError("Password and Confirm Password must match.");
     }
 
     // Check uniqueness
     const existingUsername = await User.findOne({ username });
     if (existingUsername) {
-      return res.render("auth/sign-up.ejs", {
-        error: "Username is already taken.",
-      });
+      return renderError("Username is already taken.");
     }
 
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
-      return res.render("auth/sign-up.ejs", {
-        error: "Email is already registered.",
-      });
+      return renderError("Email is already registered.");
     }
 
     // Hash password
@@ -51,6 +61,8 @@ router.post("/sign-up", async (req, res) => {
       email,
       password: hashedPassword,
       role: role || "patient",
+      assignedClinicianId:
+        role === "patient" ? req.body.assignedClinicianId || null : null,
     });
 
     res.redirect("/auth/sign-in");

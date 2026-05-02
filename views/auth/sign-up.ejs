@@ -52,6 +52,17 @@
             </select>
           </div>
 
+          <!-- Only shown when role is Patient -->
+          <div class="form-group" id="clinician-group">
+            <label for="assignedClinicianId">Assigned Clinician</label>
+            <select name="assignedClinicianId" id="assignedClinicianId">
+              <option value="">— None —</option>
+              <% clinicians.forEach(c => { %>
+                <option value="<%= c._id %>"><%= c.name %></option>
+              <% }); %>
+            </select>
+          </div>
+
           <button type="submit" class="btn btn-primary btn-full">Sign Up</button>
         </form>
 
@@ -61,5 +72,17 @@
         </div>
       </div>
     </main>
+
+    <script>
+      const roleSelect = document.getElementById('role');
+      const clinicianGroup = document.getElementById('clinician-group');
+
+      function toggleClinician() {
+        clinicianGroup.style.display = roleSelect.value === 'patient' ? 'block' : 'none';
+      }
+
+      roleSelect.addEventListener('change', toggleClinician);
+      toggleClinician(); // run on page load
+    </script>
   </body>
 </html>
