@@ -202,6 +202,7 @@ test("CSRF middleware issues session tokens and rejects invalid submissions", ()
     },
   );
   assert.equal(nextCalled, true);
+  assert.equal(response.locals.csrfToken, session.csrfToken);
 });
 
 test("all POST forms include the shared CSRF field", () => {
@@ -225,9 +226,18 @@ test("clinician registration accepts a valid form and persists the selected role
   const originalFindOne = User.findOne;
   const originalCreate = User.create;
   let createdUser;
+  let duplicateLookup = null;
 
   User.find = () => ({ sort: async () => [] });
-  User.findOne = async () => null;
+  User.findOne = async (query) => {
+    if (duplicateLookup?.username && duplicateLookup.username === query.username) {
+      return { username: query.username };
+    }
+    if (duplicateLookup?.email && duplicateLookup.email === query.email) {
+      return { email: query.email };
+    }
+    return null;
+  };
   User.create = async (user) => {
     createdUser = user;
     return user;
@@ -292,6 +302,136 @@ test("clinician registration accepts a valid form and persists the selected role
   assert.equal(createdUser.role, "clinician");
   assert.equal(createdUser.assignedClinicianId, null);
   assert.notEqual(createdUser.password, "synthetic-clinician-password");
+
+  const submitSignup = async (values) =>
+    fetch(`${origin}/auth/sign-up`, {
+      method: "POST",
+      headers: {
+        cookie,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ _csrf: csrfToken, ...values }),
+      redirect: "manual",
+    });
+
+  const sameNameSignup = await submitSignup({
+    username: "another-clinician",
+    name: "Smoke Clinician",
+    email: "another-clinician@example.test",
+    password: "synthetic-clinician-password",
+    confirmPassword: "synthetic-clinician-password",
+    role: "clinician",
+  });
+  assert.equal(sameNameSignup.status, 302);
+  assert.equal(createdUser.name, "Smoke Clinician");
+  assert.equal(createdUser.username, "another-clinician");
+
+  duplicateLookup = { username: "already-used" };
+  const duplicateUsername = await submitSignup({
+    username: "already-used",
+    name: "Same Full Name",
+    email: "new-clinician@example.test",
+    password: "synthetic-clinician-password",
+    confirmPassword: "synthetic-clinician-password",
+    role: "clinician",
+  });
+  assert.equal(duplicateUsername.status, 409);
+  const duplicateUsernameHtml = await duplicateUsername.text();
+  assert.match(duplicateUsernameHtml, /That username is already in use/);
+  assert.match(duplicateUsernameHtml, /Choose a different username/);
+  assert.match(duplicateUsernameHtml, /value="already-used"/);
+  assert.match(duplicateUsernameHtml, /value="Same Full Name"/);
+  assert.match(duplicateUsernameHtml, /value="new-clinician@example\.test"/);
+  assert.match(duplicateUsernameHtml, /Clinician — view records[^<]*<\/option>/);
+  assert.doesNotMatch(duplicateUsernameHtml, /value="synthetic-clinician-password"/);
+
+  duplicateLookup = { email: "already-used@example.test" };
+  const duplicateEmail = await submitSignup({
+    username: "different-user",
+    name: "Same Full Name",
+    email: "already-used@example.test",
+    password: "synthetic-clinician-password",
+    confirmPassword: "synthetic-clinician-password",
+    role: "clinician",
+  });
+  assert.equal(duplicateEmail.status, 409);
+  const duplicateEmailHtml = await duplicateEmail.text();
+  assert.match(duplicateEmailHtml, /That email already has an account/);
+  assert.match(duplicateEmailHtml, /Sign in/);
+  assert.match(duplicateEmailHtml, /value="different-user"/);
+
+  duplicateLookup = null;
+  const originalCreateMock = User.create;
+  User.create = async () => {
+    const error = new Error("duplicate key");
+    error.code = 11000;
+    error.keyPattern = { username: 1 };
+    throw error;
+  };
+  const duplicateRace = await submitSignup({
+    username: "new-unavailable",
+    name: "Same Full Name",
+    email: "another-email@example.test",
+    password: "synthetic-clinician-password",
+    confirmPassword: "synthetic-clinician-password",
+    role: "clinician",
+  });
+  assert.equal(duplicateRace.status, 409);
+  assert.match(await duplicateRace.text(), /That username is already in use/);
+  User.create = originalCreateMock;
+});
+
+test("sign-in failures show instructions and keep the username", async (t) => {
+  const originalFindOne = User.findOne;
+  User.findOne = async () => null;
+
+  const app = express();
+  app.use(express.urlencoded({ extended: false }));
+  app.use(
+    session({
+      secret: "test-only-session-secret-with-sufficient-length",
+      resave: false,
+      saveUninitialized: true,
+    }),
+  );
+  app.use(csrfProtection);
+  app.use((req, res, next) => {
+    res.locals.user = null;
+    next();
+  });
+  app.use("/auth", authController);
+  const server = app.listen(0);
+
+  t.after(() => {
+    server.close();
+    User.findOne = originalFindOne;
+  });
+
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const page = await fetch(`${origin}/auth/sign-in`);
+  const cookie = page.headers.get("set-cookie")?.split(";")[0];
+  const html = await page.text();
+  const csrfToken = html.match(/name="_csrf" value="([a-f0-9]{64})"/)?.[1];
+  const response = await fetch(`${origin}/auth/sign-in`, {
+    method: "POST",
+    headers: {
+      cookie,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      _csrf: csrfToken,
+      username: "unknown-account",
+      password: "synthetic-invalid-password",
+    }),
+  });
+  const responseHtml = await response.text();
+
+  assert.equal(response.status, 401);
+  assert.match(responseHtml, /We couldn&#39;t sign you in/);
+  assert.match(responseHtml, /Check your username and password/);
+  assert.match(responseHtml, /Password reset is not available yet/);
+  assert.match(responseHtml, /value="unknown-account"/);
+  assert.doesNotMatch(responseHtml, /value="synthetic-invalid-password"/);
 });
 
 test("sign-in middleware permits sessions and redirects guests", () => {

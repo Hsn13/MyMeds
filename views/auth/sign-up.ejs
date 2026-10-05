@@ -3,80 +3,104 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sign Up</title>
+    <title>Create an account — MyMeds</title>
     <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body>
     <%- include('../navbar') %>
     <main class="main-content">
-      <div class="auth-container">
-        <div class="page-header">
-          <h1>Create a new account</h1>
-        </div>
+      <div class="auth-container auth-page">
+        <header class="auth-heading">
+          <span class="auth-eyebrow">WELCOME TO MYMEDS</span>
+          <h1>Create your account</h1>
+          <p class="auth-description">Keep your medication list and daily records together in one private place.</p>
+        </header>
 
         <% if (locals.error) { %>
-          <div class="alert alert-error" role="alert"><%= error %></div>
-          <% if (locals.requestId) { %>
-            <p class="form-hint">If this keeps happening, share reference <code><%= requestId %></code> with support.</p>
-          <% } %>
+          <section class="auth-error" role="alert" aria-live="assertive" tabindex="-1">
+            <span class="auth-error-icon" aria-hidden="true">!</span>
+            <div>
+              <h2><%= locals.errorTitle || "We couldn't finish signing you up" %></h2>
+              <p><%= error %></p>
+              <% if (locals.errorField === "username") { %>
+                <p class="auth-error-next">Try a different username. Your name, email, and account type are still filled in.</p>
+              <% } else if (locals.errorField === "email") { %>
+                <p class="auth-error-next">If this is your account, go to <a href="/auth/sign-in">Sign in</a>. Otherwise, enter an email address not already registered.</p>
+              <% } else if (locals.errorField === "password" || locals.errorField === "confirmPassword") { %>
+                <p class="auth-error-next">Re-enter both password fields. Passwords are intentionally cleared after a submission.</p>
+              <% } else if (locals.errorField === "assignedClinicianId") { %>
+                <p class="auth-error-next">Choose a clinician from the current list, or choose None.</p>
+              <% } %>
+              <% if (locals.requestId) { %>
+                <p class="auth-error-reference">If this keeps happening, share reference <code><%= requestId %></code> with support.</p>
+              <% } %>
+            </div>
+          </section>
         <% } %>
+
+        <div class="auth-steps" aria-label="How registration works">
+          <span><b>1</b> Your details</span>
+          <span><b>2</b> Account type</span>
+          <span><b>3</b> Sign in</span>
+        </div>
 
         <form action="/auth/sign-up" method="POST">
           <%- include('../csrf-field') %>
-          <div class="form-group">
+          <div class="form-group <%= locals.errorField === 'username' ? 'has-error' : '' %>">
             <label for="username">Username</label>
-            <input type="text" name="username" id="username" required />
+            <input type="text" name="username" id="username" value="<%= locals.formData ? formData.username : '' %>" autocomplete="username" aria-invalid="<%= locals.errorField === 'username' %>" required />
+            <small>Choose a unique username you can remember.</small>
           </div>
 
           <div class="form-group">
             <label for="name">Full Name</label>
-            <input type="text" name="name" id="name" required />
+            <input type="text" name="name" id="name" value="<%= locals.formData ? formData.name : '' %>" autocomplete="name" required />
           </div>
 
-          <div class="form-group">
+          <div class="form-group <%= locals.errorField === 'email' ? 'has-error' : '' %>">
             <label for="email">Email</label>
-            <input type="email" name="email" id="email" required />
+            <input type="email" name="email" id="email" value="<%= locals.formData ? formData.email : '' %>" autocomplete="email" aria-invalid="<%= locals.errorField === 'email' %>" required />
+            <small>Use an email address that is not already registered.</small>
           </div>
 
-          <div class="form-group">
+          <div class="form-group <%= locals.errorField === 'password' ? 'has-error' : '' %>">
             <label for="password">Password</label>
-            <input type="password" name="password" id="password" minlength="12" required />
+            <input type="password" name="password" id="password" minlength="12" autocomplete="new-password" aria-invalid="<%= locals.errorField === 'password' %>" required />
+            <small>Use at least 12 characters. Passwords are cleared after submission for your security.</small>
           </div>
 
-          <div class="form-group">
+          <div class="form-group <%= locals.errorField === 'confirmPassword' ? 'has-error' : '' %>">
             <label for="confirmPassword">Confirm Password</label>
-            <input type="password" name="confirmPassword" id="confirmPassword" required />
+            <input type="password" name="confirmPassword" id="confirmPassword" autocomplete="new-password" aria-invalid="<%= locals.errorField === 'confirmPassword' %>" required />
           </div>
 
-          <div class="form-group">
+          <div class="form-group <%= locals.errorField === 'role' ? 'has-error' : '' %>">
             <label for="role">Account Type</label>
-            <select name="role" id="role">
-              <option value="patient">Patient</option>
-              <option value="clinician">Clinician</option>
+            <select name="role" id="role" aria-invalid="<%= locals.errorField === 'role' %>">
+              <option value="patient" <%= locals.formData && formData.role === 'patient' ? 'selected' : '' %>>Patient — track your own medications</option>
+              <option value="clinician" <%= locals.formData && formData.role === 'clinician' ? 'selected' : '' %>>Clinician — view records of patients who assign you</option>
             </select>
+            <small>Choose the role that matches how you will use MyMeds.</small>
           </div>
 
-          <!-- Only shown when role is Patient -->
-          <div class="form-group" id="clinician-group">
+          <div class="form-group <%= locals.errorField === 'assignedClinicianId' ? 'has-error' : '' %>" id="clinician-group">
             <label for="assignedClinicianId">Assigned Clinician</label>
-            <small>Clinician accounts are not independently verified. Select only a clinician whose identity you have confirmed.</small>
-            <select name="assignedClinicianId" id="assignedClinicianId">
+            <small>Optional. Clinician accounts are not independently verified. Select only someone whose identity you have confirmed.</small>
+            <select name="assignedClinicianId" id="assignedClinicianId" aria-invalid="<%= locals.errorField === 'assignedClinicianId' %>">
               <option value="">— None —</option>
               <% clinicians.forEach(c => { %>
-                <option value="<%= c._id %>"><%= c.name %></option>
+                <option value="<%= c._id %>" <%= locals.formData && formData.assignedClinicianId === c._id.toString() ? 'selected' : '' %>><%= c.name %></option>
               <% }); %>
             </select>
           </div>
 
-          <button type="submit" class="btn btn-primary btn-full">Sign Up</button>
+          <button type="submit" class="btn btn-primary btn-full">Create account</button>
         </form>
 
         <div class="auth-footer">
-          Already have an account?
-          <a href="/auth/sign-in">Sign in</a>
+          Already registered? <a href="/auth/sign-in">Sign in to your account</a>
         </div>
       </div>
     </main>
-
   </body>
 </html>

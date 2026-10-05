@@ -24,9 +24,11 @@ function csrfProtection(req, res, next) {
     if (!req.session.csrfToken) {
       req.session.csrfToken = crypto.randomBytes(32).toString("hex");
     }
-    res.locals.csrfToken = req.session.csrfToken;
-    return next();
   }
+
+  res.locals.csrfToken = req.session.csrfToken;
+
+  if (safeMethods.has(req.method)) return next();
 
   const receivedToken = req.body?._csrf || req.get("x-csrf-token");
   if (!matchesToken(req.session.csrfToken, receivedToken)) {

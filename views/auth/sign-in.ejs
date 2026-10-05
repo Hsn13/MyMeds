@@ -3,40 +3,57 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sign In</title>
+    <title>Sign in — MyMeds</title>
     <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body>
     <%- include('../navbar') %>
 
     <main class="main-content">
-      <div class="auth-container">
-        <div class="page-header">
-          <h1>Sign In</h1>
-        </div>
+      <div class="auth-container auth-page auth-page-compact">
+        <header class="auth-heading">
+          <span class="auth-eyebrow">WELCOME BACK</span>
+          <h1>Sign in to MyMeds</h1>
+          <p class="auth-description">Your medication records are ready when you are.</p>
+        </header>
 
         <% if (locals.error) { %>
-          <div class="alert alert-error" role="alert"><%= error %></div>
+          <section class="auth-error" role="alert" aria-live="assertive" tabindex="-1">
+            <span class="auth-error-icon" aria-hidden="true">!</span>
+            <div>
+              <h2><%= locals.errorTitle || "We couldn't sign you in" %></h2>
+              <p><%= error %></p>
+              <% if (locals.accountInactive) { %>
+                <p class="auth-error-next">Ask your administrator to review your account status. Creating another account will not restore this one.</p>
+              <% } else { %>
+                <p class="auth-error-next">Check your username and password, then try again. Password reset is not available yet.</p>
+                <p class="auth-error-next">New to MyMeds? <a href="/auth/sign-up">Create an account</a>.</p>
+              <% } %>
+              <% if (locals.requestId) { %>
+                <p class="auth-error-reference">If this keeps happening, share reference <code><%= requestId %></code> with support.</p>
+              <% } %>
+            </div>
+          </section>
         <% } %>
 
         <form action="/auth/sign-in" method="POST">
           <%- include('../csrf-field') %>
           <div class="form-group">
             <label for="username">Username</label>
-            <input type="text" name="username" id="username" required />
+            <input type="text" name="username" id="username" value="<%= locals.username || '' %>" autocomplete="username" required />
           </div>
 
           <div class="form-group">
             <label for="password">Password</label>
-            <input type="password" name="password" id="password" required />
+            <input type="password" name="password" id="password" autocomplete="current-password" required />
+            <small>Password values are cleared after a failed attempt.</small>
           </div>
 
-          <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+          <button type="submit" class="btn btn-primary btn-full">Sign in</button>
         </form>
 
         <div class="auth-footer">
-          Do not have an account?
-          <a href="/auth/sign-up">Create one</a>
+          Don’t have an account? <a href="/auth/sign-up">Create one</a>
         </div>
       </div>
     </main>
