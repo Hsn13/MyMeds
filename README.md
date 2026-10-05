@@ -45,6 +45,8 @@ The app listens on port 3000 by default. `PORT` can override it.
 
 The shared navigation includes a system-aware light/dark theme preference. Patient-defined medication categories are organizational labels only; the app does not recommend medicines or treatments. Messages and review requests are not monitored in real time and must not be used for emergencies.
 
+The branded loading overlay appears during navigation within the running app. It cannot replace Render's platform loading page when a Free web service has spun down: Render serves that page before the MyMeds server is available. Avoiding that cold start requires keeping the service on an always-on paid compute plan; the app's Render plan has not been changed.
+
 ## Production deployment on Render
 
 `render.yaml` describes a Node web service, installs from the lockfile with `npm ci`, and uses `/healthz` for readiness checks. Set `MONGODB_URI` in the Render dashboard as a secret environment variable. Render can generate `SESSION_SECRET` from the Blueprint configuration, or it can be set manually to a high-entropy random value. Do not put production credentials in this repository.
