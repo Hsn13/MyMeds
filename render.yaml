@@ -2,6 +2,7 @@ services:
   - type: web
     name: mymeds
     runtime: node
+    plan: starter
     buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /healthz
