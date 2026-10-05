@@ -61,6 +61,25 @@ test("all EJS views compile and include existing partials", () => {
   }
 });
 
+test("all full-page views reference the supplied PNG favicon", () => {
+  const templates = listFiles(path.join(root, "views")).filter((file) =>
+    file.endsWith(".ejs"),
+  );
+  const pageTemplates = templates.filter((file) =>
+    fs.readFileSync(file, "utf8").includes("<head>"),
+  );
+
+  assert.ok(pageTemplates.length > 0);
+  assert.equal(fs.readFileSync(path.join(root, "public", "image.png")).subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  for (const file of pageTemplates) {
+    assert.match(
+      fs.readFileSync(file, "utf8"),
+      /<link rel="icon" type="image\/png" href="\/image\.png"/,
+      `favicon missing from ${path.relative(root, file)}`,
+    );
+  }
+});
+
 test("controller render targets exist", () => {
   const controllers = listFiles(path.join(root, "controllers")).filter((file) =>
     file.endsWith(".js"),
