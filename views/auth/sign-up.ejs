@@ -16,6 +16,9 @@
 
         <% if (locals.error) { %>
           <div class="alert alert-error" role="alert"><%= error %></div>
+          <% if (locals.requestId) { %>
+            <p class="form-hint">If this keeps happening, share reference <code><%= requestId %></code> with support.</p>
+          <% } %>
         <% } %>
 
         <form action="/auth/sign-up" method="POST">

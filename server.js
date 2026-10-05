@@ -21,6 +21,8 @@ if (isProduction) {
 }
 
 app.use((req, res, next) => {
+  res.locals.requestId = crypto.randomUUID();
+  res.setHeader("X-Request-Id", res.locals.requestId);
   res.locals.cspNonce = crypto.randomBytes(18).toString("base64");
   const nonce = res.locals.cspNonce;
   res.setHeader(
@@ -133,9 +135,13 @@ function addApplicationMiddleware() {
   });
 
   app.use((err, req, res, next) => {
-    console.error("Unhandled request error:", err.name || "Error");
+    console.error(
+      `Unhandled request error [${res.locals.requestId}] ${req.method} ${req.path}: ${err.name || "Error"}${err.code ? ` (${err.code})` : ""}`,
+    );
     if (res.headersSent) return next(err);
-    res.status(500).send("An unexpected error occurred.");
+    res.status(500).send(
+      `We couldn't complete that request. Please try again. Reference: ${res.locals.requestId}`,
+    );
   });
 }
 

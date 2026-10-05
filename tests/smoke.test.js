@@ -3,6 +3,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const ejs = require("ejs");
+const express = require("express");
+const session = require("express-session");
+const User = require("../models/User.js");
+const authController = require("../controllers/auth.js");
 const isSignedIn = require("../middleware/is-signed-in.js");
 const csrfProtection = require("../middleware/csrf-protection.js");
 
@@ -214,6 +218,80 @@ test("all POST forms include the shared CSRF field", () => {
       );
     }
   }
+});
+
+test("clinician registration accepts a valid form and persists the selected role", async (t) => {
+  const originalFind = User.find;
+  const originalFindOne = User.findOne;
+  const originalCreate = User.create;
+  let createdUser;
+
+  User.find = () => ({ sort: async () => [] });
+  User.findOne = async () => null;
+  User.create = async (user) => {
+    createdUser = user;
+    return user;
+  };
+
+  const app = express();
+  app.use(express.urlencoded({ extended: false }));
+  app.use(
+    session({
+      secret: "test-only-session-secret-with-sufficient-length",
+      resave: false,
+      saveUninitialized: true,
+    }),
+  );
+  app.use(csrfProtection);
+  app.use((req, res, next) => {
+    res.locals.user = null;
+    next();
+  });
+  app.use("/auth", authController);
+
+  const server = app.listen(0);
+  t.after(async () => {
+    server.close();
+    User.find = originalFind;
+    User.findOne = originalFindOne;
+    User.create = originalCreate;
+  });
+
+  const address = server.address();
+  const origin = `http://127.0.0.1:${address.port}`;
+  const signUpPage = await fetch(`${origin}/auth/sign-up`);
+  assert.equal(signUpPage.status, 200);
+
+  const cookie = signUpPage.headers.get("set-cookie")?.split(";")[0];
+  const html = await signUpPage.text();
+  const csrfToken = html.match(/name="_csrf" value="([a-f0-9]{64})"/)?.[1];
+  assert.ok(cookie, "signup page should create a session cookie");
+  assert.ok(csrfToken, "signup page should provide a CSRF token");
+
+  const form = new URLSearchParams({
+    _csrf: csrfToken,
+    username: "smoke-clinician",
+    name: "Smoke Clinician",
+    email: "smoke-clinician@example.test",
+    password: "synthetic-clinician-password",
+    confirmPassword: "synthetic-clinician-password",
+    role: "clinician",
+  });
+  const response = await fetch(`${origin}/auth/sign-up`, {
+    method: "POST",
+    headers: {
+      cookie,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: form,
+    redirect: "manual",
+  });
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get("location"), "/auth/sign-in");
+  assert.equal(createdUser.role, "clinician");
+  assert.equal(createdUser.assignedClinicianId, null);
+  assert.notEqual(createdUser.password, "synthetic-clinician-password");
 });
 
 test("sign-in middleware permits sessions and redirects guests", () => {

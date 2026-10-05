@@ -45,7 +45,13 @@ router.post("/sign-up", async (req, res) => {
     };
 
     // --- Validation ---
-    if (!username || !name || !email || !password) {
+    if (
+      !username ||
+      !name ||
+      !email ||
+      typeof password !== "string" ||
+      password.length === 0
+    ) {
       return renderError("All fields are required.");
     }
 
@@ -55,6 +61,10 @@ router.post("/sign-up", async (req, res) => {
 
     if (password.length < 12) {
       return renderError("Password must be at least 12 characters long.");
+    }
+
+    if (Buffer.byteLength(password, "utf8") > 72) {
+      return renderError("Password must be no longer than 72 UTF-8 bytes.");
     }
 
     if (password !== confirmPassword) {
@@ -102,8 +112,12 @@ router.post("/sign-up", async (req, res) => {
 
     res.redirect("/auth/sign-in");
   } catch (err) {
-    logError("Account registration failed", err);
-    res.status(500).send("Something went wrong during sign up.");
+    logError("Account registration failed", err, res.locals.requestId);
+    res.status(500).render("auth/sign-up.ejs", {
+      error: "We couldn't create your account. Please try again.",
+      clinicians: [],
+      requestId: res.locals.requestId,
+    });
   }
 });
 
