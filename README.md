@@ -2,6 +2,8 @@
 
 MyMeds is an Express and MongoDB application for patients to track medications, record daily intake, and report side effects. Clinicians can view the records of patients who select them during signup. The application is hosted at [mymeds-kmzz.onrender.com](https://mymeds-kmzz.onrender.com).
 
+This project is licensed under the ISC License; see [LICENSE](LICENSE).
+
 ## Requirements
 
 - Node.js 22.12 or later (Node 24 is selected by `.nvmrc`)
