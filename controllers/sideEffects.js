@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const SideEffect = require("../models/SideEffect.js");
 const Medication = require("../models/Medication.js");
+const logError = require("../utils/log-error.js");
 
 // Helper: verify a medication belongs to the current user
 async function verifyMedicationOwnership(medicationId, userId) {
@@ -20,10 +21,20 @@ router.get("/", async (req, res) => {
     const medicationIds = medications.map((m) => m._id);
 
     let filter = { medicationId: { $in: medicationIds } };
+    let selectedMedicationId = null;
 
-    // If filtering by a specific medication
     if (req.query.medicationId) {
-      filter.medicationId = req.query.medicationId;
+      const selectedMedication = medications.find(
+        (medication) =>
+          medication._id.toString() === String(req.query.medicationId),
+      );
+      if (!selectedMedication) {
+        return res.status(404).send("Medication not found.");
+      }
+      selectedMedicationId = selectedMedication._id.toString();
+      filter = {
+        medicationId: selectedMedication._id,
+      };
     }
 
     const sideEffects = await SideEffect.find(filter)
@@ -33,10 +44,10 @@ router.get("/", async (req, res) => {
     res.render("sideEffects/index.ejs", {
       sideEffects,
       medications,
-      selectedMedicationId: req.query.medicationId || null,
+      selectedMedicationId,
     });
   } catch (err) {
-    console.error(err);
+    logError("Side-effect list failed", err);
     res.status(500).send("Error loading side effects.");
   }
 });
@@ -53,7 +64,7 @@ router.get("/new", async (req, res) => {
 
     res.render("sideEffects/new.ejs", { medications, selectedMedicationId });
   } catch (err) {
-    console.error(err);
+    logError("Side-effect form loading failed", err);
     res.status(500).send("Error loading side effect form.");
   }
 });
@@ -99,7 +110,7 @@ router.post("/", async (req, res) => {
 
     res.redirect(`/side-effects?medicationId=${medicationId}`);
   } catch (err) {
-    console.error(err);
+    logError("Side-effect creation failed", err);
     res.status(500).send("Error creating side effect.");
   }
 });
@@ -122,7 +133,7 @@ router.get("/:id", async (req, res) => {
 
     res.render("sideEffects/show.ejs", { sideEffect });
   } catch (err) {
-    console.error(err);
+    logError("Side-effect loading failed", err);
     res.status(500).send("Error loading side effect.");
   }
 });
@@ -148,7 +159,7 @@ router.get("/:id/edit", async (req, res) => {
 
     res.render("sideEffects/edit.ejs", { sideEffect, medications });
   } catch (err) {
-    console.error(err);
+    logError("Side-effect edit form loading failed", err);
     res.status(500).send("Error loading side effect for edit.");
   }
 });
@@ -180,7 +191,7 @@ router.put("/:id", async (req, res) => {
 
     res.redirect(`/side-effects?medicationId=${sideEffect.medicationId._id}`);
   } catch (err) {
-    console.error(err);
+    logError("Side-effect update failed", err);
     res.status(500).send("Error updating side effect.");
   }
 });
@@ -205,7 +216,7 @@ router.delete("/:id", async (req, res) => {
 
     res.redirect(`/side-effects?medicationId=${medId}`);
   } catch (err) {
-    console.error(err);
+    logError("Side-effect deletion failed", err);
     res.status(500).send("Error deleting side effect.");
   }
 });

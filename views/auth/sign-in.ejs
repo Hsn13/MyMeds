@@ -16,10 +16,11 @@
         </div>
 
         <% if (locals.error) { %>
-          <div class="error-message"><%= error %></div>
+          <div class="alert alert-error" role="alert"><%= error %></div>
         <% } %>
 
         <form action="/auth/sign-in" method="POST">
+          <%- include('../csrf-field') %>
           <div class="form-group">
             <label for="username">Username</label>
             <input type="text" name="username" id="username" required />

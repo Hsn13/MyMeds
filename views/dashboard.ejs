@@ -6,7 +6,7 @@
   <title>Dashboard — MyMeds</title>
   <link rel="stylesheet" href="/css/style.css">
   <!-- Chart.js via CDN — realistic choice for a learning project -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="/vendor/chart.umd.js"></script>
 </head>
 <body>
   <%- include('navbar') %>
@@ -78,7 +78,7 @@
   <!-- Data block: EJS renders server variables into plain JSON here.
        Kept in its own script tag so the Chart.js logic below is pure JS
        and won't trigger "Expression expected" in your linter. -->
-  <script>
+  <script nonce="<%= cspNonce %>">
     const weeklyLabels  = <%- JSON.stringify(weeklyTrend.map(d => d.label)) %>;
     const weeklyData    = <%- JSON.stringify(weeklyTrend.map(d => d.adherence)) %>;
     const pieData       = <%- JSON.stringify(pieData) %>;
@@ -86,7 +86,7 @@
   </script>
 
   <!-- Chart logic: pure JS — no EJS tags, linter stays happy -->
-  <script>
+  <script nonce="<%= cspNonce %>">
     // ── 1. Adherence Line Chart ──────────────────────────────────────────────
     new Chart(document.getElementById('adherenceChart'), {
       type: 'line',

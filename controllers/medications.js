@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Medication = require("../models/Medication.js");
+const logError = require("../utils/log-error.js");
 
 // ─── INDEX — List all medications for the current user ───────────────────────
 // Default: show only active. If query param showInactive=true, show all.
@@ -16,7 +17,7 @@ router.get("/", async (req, res) => {
     const medications = await Medication.find(filter).sort({ createdAt: -1 });
     res.render("medications/index.ejs", { medications, showInactive });
   } catch (err) {
-    console.error(err);
+    logError("Medication list failed", err);
     res.status(500).send("Error loading medications.");
   }
 });
@@ -52,7 +53,7 @@ router.post("/", async (req, res) => {
 
     res.redirect("/medications");
   } catch (err) {
-    console.error(err);
+    logError("Medication creation failed", err);
     res.status(500).send("Error creating medication.");
   }
 });
@@ -71,7 +72,7 @@ router.get("/:id", async (req, res) => {
 
     res.render("medications/show.ejs", { medication });
   } catch (err) {
-    console.error(err);
+    logError("Medication loading failed", err);
     res.status(500).send("Error loading medication.");
   }
 });
@@ -90,7 +91,7 @@ router.get("/:id/edit", async (req, res) => {
 
     res.render("medications/edit.ejs", { medication });
   } catch (err) {
-    console.error(err);
+    logError("Medication edit form loading failed", err);
     res.status(500).send("Error loading medication for edit.");
   }
 });
@@ -129,7 +130,7 @@ router.put("/:id", async (req, res) => {
     await medication.save();
     res.redirect("/medications");
   } catch (err) {
-    console.error(err);
+    logError("Medication update failed", err);
     res.status(500).send("Error updating medication.");
   }
 });
@@ -153,7 +154,7 @@ router.delete("/:id", async (req, res) => {
 
     res.redirect("/medications");
   } catch (err) {
-    console.error(err);
+    logError("Medication deactivation failed", err);
     res.status(500).send("Error deleting medication.");
   }
 });

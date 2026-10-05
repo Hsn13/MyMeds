@@ -17,6 +17,7 @@
 
     <div class="form-container">
       <form action="/side-effects/<%= sideEffect._id %>?_method=PUT" method="POST">
+        <%- include('../csrf-field') %>
         <!-- Medication is fixed -->
         <div class="form-group">
           <label>Medication</label>

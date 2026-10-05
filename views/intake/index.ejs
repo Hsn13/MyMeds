@@ -72,8 +72,9 @@
                 </div>
                 <div class="intake-actions">
                   <a href="/intake/<%= log._id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
-                  <form action="/intake/<%= log._id %>?_method=DELETE" method="POST" style="display:inline;">
-                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this log entry?')">Delete</button>
+                  <form action="/intake/<%= log._id %>?_method=DELETE" method="POST" data-confirm="Delete this log entry?">
+                    <%- include('../csrf-field') %>
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                   </form>
                 </div>
               <% } else { %>

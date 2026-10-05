@@ -65,9 +65,9 @@
                   <a href="/medications/<%= med._id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
                   <% if (med.isActive) { %>
                     <!-- Soft delete: sets isActive to false -->
-                    <form action="/medications/<%= med._id %>?_method=DELETE" method="POST" style="display:inline;">
-                      <button type="submit" class="btn btn-sm btn-danger"
-                        onclick="return confirm('Deactivate this medication? It will be hidden but not permanently deleted.')">
+                    <form action="/medications/<%= med._id %>?_method=DELETE" method="POST" data-confirm="Deactivate this medication? It will be hidden but not permanently deleted.">
+                      <%- include('../csrf-field') %>
+                      <button type="submit" class="btn btn-sm btn-danger">
                         Deactivate
                       </button>
                     </form>

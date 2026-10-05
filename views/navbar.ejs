@@ -17,7 +17,10 @@
       <div class="navbar-user">
         <span class="navbar-username"><%= user.name %> (<%= user.role %>)</span>
         <a href="/auth/profile">Profile</a>
-        <a href="/auth/sign-out">Sign Out</a>
+        <form action="/auth/sign-out" method="POST" class="navbar-sign-out">
+          <%- include('csrf-field') %>
+          <button type="submit" class="navbar-link-button">Sign Out</button>
+        </form>
       </div>
     <% } else { %>
       <a href="/">Home</a>
@@ -26,3 +29,4 @@
     <% } %>
   </div>
 </nav>
+<script src="/js/app.js" defer></script>

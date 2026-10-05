@@ -17,6 +17,7 @@
 
     <div class="form-container">
       <form action="/intake/<%= log._id %>?_method=PUT" method="POST">
+        <%- include('../csrf-field') %>
         <!-- Medication is fixed (read-only) — can't change which med a log belongs to -->
         <div class="form-group">
           <label>Medication</label>

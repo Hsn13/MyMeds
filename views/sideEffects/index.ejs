@@ -18,14 +18,16 @@
     <!-- Filter by medication -->
     <div class="filter-bar">
       <label for="medFilter">Filter by medication:</label>
-      <select id="medFilter" onchange="window.location='/side-effects' + (this.value ? '?medicationId=' + this.value : '')">
-        <option value="" <%= !selectedMedicationId ? 'selected' : '' %>>All Medications</option>
-        <% medications.forEach(med => { %>
-          <option value="<%= med._id %>" <%= selectedMedicationId === med._id.toString() ? 'selected' : '' %>>
-            <%= med.name %> <%= med.isActive ? '' : '(Inactive)' %>
-          </option>
-        <% }); %>
-      </select>
+      <form action="/side-effects" method="GET">
+        <select id="medFilter" name="medicationId">
+          <option value="" <%= !selectedMedicationId ? 'selected' : '' %>>All Medications</option>
+          <% medications.forEach(med => { %>
+            <option value="<%= med._id %>" <%= selectedMedicationId === med._id.toString() ? 'selected' : '' %>>
+              <%= med.name %> <%= med.isActive ? '' : '(Inactive)' %>
+            </option>
+          <% }); %>
+        </select>
+      </form>
     </div>
 
     <% if (sideEffects.length === 0) { %>
@@ -53,8 +55,9 @@
               <% } %>
               <div class="timeline-actions">
                 <a href="/side-effects/<%= se._id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
-                <form action="/side-effects/<%= se._id %>?_method=DELETE" method="POST" style="display:inline;">
-                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this side effect report?')">Delete</button>
+                <form action="/side-effects/<%= se._id %>?_method=DELETE" method="POST" data-confirm="Delete this side effect report?">
+                  <%- include('../csrf-field') %>
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                 </form>
               </div>
             </div>

@@ -5,6 +5,7 @@ const User = require("../models/User.js");
 const Medication = require("../models/Medication.js");
 const IntakeLog = require("../models/IntakeLog.js");
 const SideEffect = require("../models/SideEffect.js");
+const logError = require("../utils/log-error.js");
 
 // Apply isClinician middleware to ALL routes in this router
 router.use(isClinician);
@@ -20,7 +21,7 @@ router.get("/patients", async (req, res) => {
 
     res.render("clinician/patients.ejs", { patients });
   } catch (err) {
-    console.error(err);
+    logError("Clinician patient list failed", err);
     res.status(500).send("Error loading patients.");
   }
 });
@@ -77,7 +78,7 @@ router.get("/patients/:patientId", async (req, res) => {
       adherenceScore,
     });
   } catch (err) {
-    console.error(err);
+    logError("Clinician patient detail failed", err);
     res.status(500).send("Error loading patient detail.");
   }
 });

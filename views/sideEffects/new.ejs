@@ -21,6 +21,7 @@
 
     <div class="form-container">
       <form action="/side-effects" method="POST">
+        <%- include('../csrf-field') %>
         <div class="form-group">
           <label for="medicationId">Medication <span class="required">*</span></label>
           <select name="medicationId" id="medicationId" required>

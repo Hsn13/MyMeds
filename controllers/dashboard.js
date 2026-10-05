@@ -3,6 +3,7 @@ const router = express.Router();
 const Medication = require("../models/Medication.js");
 const IntakeLog = require("../models/IntakeLog.js");
 const SideEffect = require("../models/SideEffect.js");
+const logError = require("../utils/log-error.js");
 
 // ─── Helper: get the start of a day (midnight UTC) ──────────────────────────
 function startOfDay(date) {
@@ -27,7 +28,6 @@ router.get("/", async (req, res) => {
     const activeMeds = await Medication.find({ userId, isActive: true });
     const allMeds = await Medication.find({ userId });
     const medicationIds = allMeds.map((m) => m._id);
-    const activeMedicationIds = activeMeds.map((m) => m._id);
 
     // --- 2. Overall Adherence Score ---
     // Count total intake logs and how many were "taken"
@@ -124,10 +124,6 @@ router.get("/", async (req, res) => {
       medicationId: { $in: medicationIds },
     }).sort({ date: -1 });
 
-    let currentStreak = 0;
-    let maxStreak = 0;
-    let lastDate = null;
-
     // Group logs by date
     const logsByDate = {};
     recentLogs.forEach((log) => {
@@ -136,20 +132,26 @@ router.get("/", async (req, res) => {
       logsByDate[dateKey].push(log);
     });
 
-    // Check consecutive days from most recent
+    // Count consecutive missed days from the most recent logged day.
     const sortedDates = Object.keys(logsByDate).sort().reverse();
+    let missedDoseStreak = 0;
+    let previousMissedDate = null;
+
     for (const dateKey of sortedDates) {
       const dayLogs = logsByDate[dateKey];
       const hasMissed = dayLogs.some((log) => log.status === "missed");
+      const dayDate = new Date(`${dateKey}T00:00:00.000Z`);
 
-      if (hasMissed) {
-        currentStreak++;
-        maxStreak = Math.max(maxStreak, currentStreak);
-      } else {
-        // If any day has no missed dose, break the streak
-        // But only if we've started counting (consecutive from today)
-        if (currentStreak > 0) break;
+      if (
+        !hasMissed ||
+        (previousMissedDate &&
+          previousMissedDate.getTime() - dayDate.getTime() !== 86_400_000)
+      ) {
+        break;
       }
+
+      missedDoseStreak++;
+      previousMissedDate = dayDate;
     }
 
     // --- 7. Pie chart data: Taken vs Missed vs Late ---
@@ -165,12 +167,11 @@ router.get("/", async (req, res) => {
       severityData, // [count_sev1, count_sev2, ..., count_sev5]
       weeklyTrend, // [{label, adherence}, ...]
       pieData, // {taken, missed, late}
-      missedDoseStreak: maxStreak,
+      missedDoseStreak,
       activeMedCount: activeMeds.length,
-      totalMedCount: allMeds.length,
     });
   } catch (err) {
-    console.error(err);
+    logError("Dashboard loading failed", err);
     res.status(500).send("Error loading dashboard.");
   }
 });

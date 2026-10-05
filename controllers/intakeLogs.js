@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const IntakeLog = require("../models/IntakeLog.js");
 const Medication = require("../models/Medication.js");
+const logError = require("../utils/log-error.js");
 
 // Helper: get only the date part (midnight UTC) for consistent date matching
 function normalizeDate(dateString) {
@@ -46,7 +47,7 @@ router.get("/", async (req, res) => {
       selectedDate,
     });
   } catch (err) {
-    console.error(err);
+    logError("Intake calendar loading failed", err);
     res.status(500).send("Error loading intake logs.");
   }
 });
@@ -66,7 +67,7 @@ router.get("/new", async (req, res) => {
       selectedDate,
     });
   } catch (err) {
-    console.error(err);
+    logError("Intake form loading failed", err);
     res.status(500).send("Error loading intake form.");
   }
 });
@@ -121,7 +122,7 @@ router.post("/", async (req, res) => {
     // Redirect back to the calendar for the same date
     res.redirect(`/intake?date=${date}`);
   } catch (err) {
-    console.error(err);
+    logError("Intake log creation failed", err);
     res.status(500).send("Error creating intake log.");
   }
 });
@@ -146,7 +147,7 @@ router.get("/:id/edit", async (req, res) => {
 
     res.render("intake/edit.ejs", { log, medications });
   } catch (err) {
-    console.error(err);
+    logError("Intake log edit form loading failed", err);
     res.status(500).send("Error loading intake log for edit.");
   }
 });
@@ -174,7 +175,7 @@ router.put("/:id", async (req, res) => {
     const dateStr = log.date.toISOString().split("T")[0];
     res.redirect(`/intake?date=${dateStr}`);
   } catch (err) {
-    console.error(err);
+    logError("Intake log update failed", err);
     res.status(500).send("Error updating intake log.");
   }
 });
@@ -199,7 +200,7 @@ router.delete("/:id", async (req, res) => {
 
     res.redirect(`/intake?date=${dateStr}`);
   } catch (err) {
-    console.error(err);
+    logError("Intake log deletion failed", err);
     res.status(500).send("Error deleting intake log.");
   }
 });
