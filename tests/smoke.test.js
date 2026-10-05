@@ -80,6 +80,22 @@ test("all full-page views reference the supplied PNG favicon", () => {
   }
 });
 
+test("shared navigation includes the accessible in-app transition loader", async () => {
+  const navbar = await ejs.renderFile(path.join(root, "views", "navbar.ejs"), {
+    user: null,
+    csrfToken: "test-token",
+  });
+
+  assert.match(navbar, /data-navigation-loader hidden aria-hidden="true"/);
+  assert.match(navbar, /role="status" aria-live="polite"/);
+  assert.match(navbar, /src="\/image\.png"/);
+  assert.match(navbar, /Preparing your care space/);
+
+  const script = fs.readFileSync(path.join(root, "public", "js", "app.js"), "utf8");
+  assert.match(script, /destination\.origin !== window\.location\.origin/);
+  assert.match(script, /window\.addEventListener\("pageshow"/);
+});
+
 test("controller render targets exist", () => {
   const controllers = listFiles(path.join(root, "controllers")).filter((file) =>
     file.endsWith(".js"),

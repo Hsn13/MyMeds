@@ -5,6 +5,65 @@ document.addEventListener("submit", (event) => {
   }
 });
 
+const navigationLoader = document.querySelector("[data-navigation-loader]");
+
+function showNavigationLoader() {
+  if (!navigationLoader) return;
+  navigationLoader.hidden = false;
+  navigationLoader.setAttribute("aria-hidden", "false");
+}
+
+document.addEventListener("click", (event) => {
+  if (
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  ) {
+    return;
+  }
+
+  const link = event.target.closest("a[href]");
+  if (
+    !link ||
+    link.target ||
+    link.hasAttribute("download") ||
+    link.dataset.noLoader !== undefined
+  ) {
+    return;
+  }
+
+  const destination = new URL(link.href, window.location.href);
+  if (
+    destination.origin !== window.location.origin ||
+    destination.pathname === window.location.pathname &&
+      destination.search === window.location.search &&
+      destination.hash
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  showNavigationLoader();
+  window.setTimeout(() => {
+    window.location.assign(destination.href);
+  }, 90);
+});
+
+document.addEventListener("submit", (event) => {
+  if (event.defaultPrevented || event.target.target) return;
+  showNavigationLoader();
+});
+
+window.addEventListener("pageshow", () => {
+  if (navigationLoader) {
+    navigationLoader.hidden = true;
+    navigationLoader.setAttribute("aria-hidden", "true");
+  }
+});
+
 const roleSelect = document.getElementById("role");
 const clinicianGroup = document.getElementById("clinician-group");
 
