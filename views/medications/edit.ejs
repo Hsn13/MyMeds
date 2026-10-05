@@ -15,12 +15,21 @@
       <a href="/medications" class="btn btn-secondary">← Back to Medications</a>
     </div>
 
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-error" role="alert"><%= error %></div>
+    <% } %>
+
     <div class="form-container">
       <form action="/medications/<%= medication._id %>?_method=PUT" method="POST">
         <%- include('../csrf-field') %>
         <div class="form-group">
           <label for="name">Medication Name <span class="required">*</span></label>
-          <input type="text" name="name" id="name" value="<%= medication.name %>" required>
+          <input type="text" name="name" id="name" value="<%= medication.name %>" maxlength="120" required>
+        </div>
+        <div class="form-group">
+          <label for="category">Category <span class="form-hint">(optional personal label)</span></label>
+          <input type="text" name="category" id="category" value="<%= medication.category || '' %>" maxlength="60">
+          <small>Use a label that helps you organize your own records; this is not medical guidance.</small>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -47,7 +56,7 @@
           </div>
           <div class="form-group">
             <label for="endDate">End Date <span class="form-hint">(leave blank if ongoing)</span></label>
-            <input type="date" name="endDate" id="endDate" value="<%= medication.endDate ? medication.endDate.toISOString().split('T')[0] : '' %>">
+            <input type="date" name="endDate" id="endDate" min="<%= medication.startDate.toISOString().split('T')[0] %>" value="<%= medication.endDate ? medication.endDate.toISOString().split('T')[0] : '' %>">
           </div>
         </div>
         <div class="form-group">
@@ -59,9 +68,9 @@
         <div class="form-group">
           <label class="checkbox-label">
             <input type="checkbox" name="isActive" value="true" <%= medication.isActive ? 'checked' : '' %>>
-            Mark as Active
+            Keep in my medication list
           </label>
-          <small>Uncheck to deactivate (soft delete). The medication will be hidden from your main list but all history is preserved.</small>
+          <small>Uncheck to hide this record from the main list. End dates automatically determine whether a listed medication is scheduled, active, or ended. Dose history is preserved.</small>
         </div>
 
         <div class="form-actions">

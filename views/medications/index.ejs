@@ -22,7 +22,7 @@
         <span class="filter-note">Showing all medications including inactive</span>
       <% } else { %>
         <a href="/medications?showInactive=true" class="btn btn-sm btn-secondary">Show Inactive</a>
-        <span class="filter-note">Showing active medications only</span>
+        <span class="filter-note">Showing listed medications, including scheduled and ended courses</span>
       <% } %>
     </div>
 
@@ -37,6 +37,7 @@
           <thead>
             <tr>
               <th>Name</th>
+              <th>Category</th>
               <th>Dosage</th>
               <th>Frequency</th>
               <th>Start Date</th>
@@ -47,18 +48,17 @@
           </thead>
           <tbody>
             <% medications.forEach(med => { %>
-              <tr class="<%= med.isActive ? '' : 'row-inactive' %>">
+              <tr class="<%= medicationStatuses.get(med._id.toString()) === 'Inactive' ? 'row-inactive' : '' %>">
                 <td><%= med.name %></td>
+                <td><%= med.category || '—' %></td>
                 <td><%= med.dosage %></td>
                 <td><%= med.frequency %></td>
                 <td><%= med.startDate.toLocaleDateString('en-US') %></td>
                 <td><%= med.endDate ? med.endDate.toLocaleDateString('en-US') : 'Ongoing' %></td>
                 <td>
-                  <% if (med.isActive) { %>
-                    <span class="badge badge-active">Active</span>
-                  <% } else { %>
-                    <span class="badge badge-inactive">Inactive</span>
-                  <% } %>
+                  <span class="badge <%= medicationStatuses.get(med._id.toString()) === 'Active' ? 'badge-active' : medicationStatuses.get(med._id.toString()) === 'Inactive' || medicationStatuses.get(med._id.toString()) === 'Ended' ? 'badge-inactive' : 'badge-late' %>">
+                    <%= medicationStatuses.get(med._id.toString()) %>
+                  </span>
                 </td>
                 <td class="actions">
                   <a href="/medications/<%= med._id %>" class="btn btn-sm btn-secondary">View</a>

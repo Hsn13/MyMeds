@@ -82,6 +82,7 @@ function addApplicationMiddleware() {
   const sideEffectsController = require("./controllers/sideEffects.js");
   const dashboardController = require("./controllers/dashboard.js");
   const clinicianController = require("./controllers/clinician.js");
+  const messagesController = require("./controllers/messages.js");
 
   app.use(
     session({
@@ -129,6 +130,7 @@ function addApplicationMiddleware() {
   app.use("/side-effects", isSignedIn, sideEffectsController);
   app.use("/dashboard", isSignedIn, dashboardController);
   app.use("/clinician", isSignedIn, clinicianController);
+  app.use("/messages", isSignedIn, messagesController);
 
   app.use((req, res) => {
     res.status(404).send("Page not found.");

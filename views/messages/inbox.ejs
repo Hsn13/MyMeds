@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messages — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+  <main class="main-content">
+    <div class="page-header">
+      <div><span class="eyebrow">ASSIGNED CARE MESSAGES</span><h1>Messages</h1><p class="page-subtitle">In-app coordination with your assigned care connection.</p></div>
+      <% if (unreadCount) { %><span class="unread-total"><%= unreadCount %> unread</span><% } %>
+    </div>
+    <div class="surface-panel message-inbox">
+      <% if (role === "patient" && !clinician) { %>
+        <div class="empty-state">
+          <h2>No assigned clinician</h2>
+          <p>Messaging is available when a clinician is assigned to your account.</p>
+        </div>
+      <% } else if (!threads.length) { %>
+        <div class="empty-state">
+          <h2>No conversations yet</h2>
+          <p><%= role === "clinician" ? "Assigned patients can start a private conversation from their account." : "Send a message to your assigned clinician when you are ready." %></p>
+          <% if (role === "patient" && clinician) { %><a href="/messages/thread" class="btn btn-primary">Start a conversation</a><% } %>
+        </div>
+      <% } else { %>
+        <div class="message-thread-list">
+          <% threads.forEach((thread) => { %>
+            <a class="message-thread-card" href="<%= thread.href %>">
+              <span class="message-avatar" aria-hidden="true"><%= (thread.patient?.name || thread.clinician?.name || "M").charAt(0).toUpperCase() %></span>
+              <span class="message-thread-summary">
+                <strong><%= thread.patient?.name || thread.clinician?.name %></strong>
+                <span><%= thread.latest ? `${thread.latest.type === "review_flag" ? "Review requested" : thread.latest.type === "feedback" ? "Clinician feedback" : "Message"}: ${thread.latest.body}` : "No messages yet — open to start a conversation." %></span>
+              </span>
+              <span class="message-thread-meta">
+                <% if (thread.unreadCount) { %><span class="unread-pill"><%= thread.unreadCount %> new</span><% } %>
+                <% if (thread.latest) { %><time datetime="<%= thread.latest.createdAt.toISOString() %>"><%= thread.latest.createdAt.toLocaleDateString() %></time><% } %>
+              </span>
+            </a>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+    <p class="prototype-note">Messages are stored in this prototype and are not monitored in real time. Share only information needed for coordination; never use this inbox for emergency or urgent care.</p>
+  </main>
+</body>
+</html>

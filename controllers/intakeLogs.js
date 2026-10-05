@@ -3,17 +3,28 @@ const router = express.Router();
 const IntakeLog = require("../models/IntakeLog.js");
 const Medication = require("../models/Medication.js");
 const logError = require("../utils/log-error.js");
+const {
+  getMedicationStatus,
+  startOfUtcDay,
+} = require("../utils/medication-status.js");
+const { parseDateOnly } = require("../utils/date-only.js");
 
 // Helper: get only the date part (midnight UTC) for consistent date matching
 function normalizeDate(dateString) {
-  const d = new Date(dateString);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
+  return parseDateOnly(dateString);
 }
 
 // Helper: get all active medications for the current user
-async function getUserMedications(userId) {
-  return Medication.find({ userId, isActive: true }).sort({ name: 1 });
+async function getUserMedications(userId, date = new Date()) {
+  const day = startOfUtcDay(date);
+  const nextDay = new Date(day);
+  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+  return Medication.find({
+    userId,
+    isActive: true,
+    startDate: { $lt: nextDay },
+    $or: [{ endDate: null }, { endDate: { $gte: day } }],
+  }).sort({ name: 1 });
 }
 
 // ─── INDEX — Calendar view of intake logs ────────────────────────────────────
@@ -21,11 +32,17 @@ async function getUserMedications(userId) {
 router.get("/", async (req, res) => {
   try {
     // If a date is provided in the query, use it; otherwise use today
-    const selectedDate = req.query.date
-      ? normalizeDate(req.query.date)
-      : normalizeDate(new Date().toISOString().split("T")[0]);
+    const selectedDate = normalizeDate(
+      req.query.date || new Date().toISOString().split("T")[0],
+    );
+    if (!selectedDate) {
+      return res.status(400).send("Please choose a valid calendar date.");
+    }
 
-    const medications = await getUserMedications(req.session.user._id);
+    const medications = await getUserMedications(
+      req.session.user._id,
+      selectedDate,
+    );
 
     // Get all intake logs for the selected date across user's medications
     const medicationIds = medications.map((m) => m._id);
@@ -55,11 +72,18 @@ router.get("/", async (req, res) => {
 // ─── NEW — Form to log intake for a specific medication ──────────────────────
 router.get("/new", async (req, res) => {
   try {
-    const medications = await getUserMedications(req.session.user._id);
-    // Pre-select a medication if passed via query param
-    const selectedMedicationId = req.query.medicationId || null;
     const selectedDate =
       req.query.date || new Date().toISOString().split("T")[0];
+    const normalizedDate = normalizeDate(selectedDate);
+    if (!normalizedDate) {
+      return res.status(400).send("Please choose a valid calendar date.");
+    }
+    const medications = await getUserMedications(
+      req.session.user._id,
+      normalizedDate,
+    );
+    // Pre-select a medication if passed via query param
+    const selectedMedicationId = req.query.medicationId || null;
 
     res.render("intake/new.ejs", {
       medications,
@@ -76,13 +100,31 @@ router.get("/new", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { medicationId, date, status, notes } = req.body;
+    const normalizedDate = normalizeDate(date);
+    if (!normalizedDate) {
+      return res.status(400).send("Please choose a valid calendar date.");
+    }
 
-    if (!medicationId || !date || !status) {
+    if (!medicationId || !status) {
       return res.render("intake/new.ejs", {
-        medications: await getUserMedications(req.session.user._id),
+        medications: await getUserMedications(
+          req.session.user._id,
+          normalizedDate,
+        ),
         selectedMedicationId: medicationId,
         selectedDate: date,
         error: "Medication, date, and status are required.",
+      });
+    }
+    if (!["taken", "missed", "late"].includes(status)) {
+      return res.status(400).render("intake/new.ejs", {
+        medications: await getUserMedications(
+          req.session.user._id,
+          normalizedDate,
+        ),
+        selectedMedicationId: medicationId,
+        selectedDate: date,
+        error: "Choose a valid intake status.",
       });
     }
 
@@ -97,7 +139,11 @@ router.post("/", async (req, res) => {
         .send("You can only log intake for your own medications.");
     }
 
-    const normalizedDate = normalizeDate(date);
+    if (getMedicationStatus(medication, normalizedDate) !== "Active") {
+      return res.status(400).send(
+        "Intake can only be recorded during the medication's active date range.",
+      );
+    }
 
     // Check if a log already exists for this medication on this date
     const existing = await IntakeLog.findOne({
@@ -143,7 +189,10 @@ router.get("/:id/edit", async (req, res) => {
       return res.status(403).send("Access denied.");
     }
 
-    const medications = await getUserMedications(req.session.user._id);
+    const medications = await getUserMedications(
+      req.session.user._id,
+      log.date,
+    );
 
     res.render("intake/edit.ejs", { log, medications });
   } catch (err) {
@@ -168,6 +217,9 @@ router.put("/:id", async (req, res) => {
     }
 
     const { status, notes } = req.body;
+    if (status !== undefined && !["taken", "missed", "late"].includes(status)) {
+      return res.status(400).send("Choose a valid intake status.");
+    }
     log.status = status || log.status;
     log.notes = notes || "";
     await log.save();

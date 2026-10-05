@@ -34,12 +34,16 @@ The app listens on port 3000 by default. `PORT` can override it.
 | Area | Routes | Purpose |
 | --- | --- | --- |
 | Account | `/auth/sign-up`, `/auth/sign-in`, `/auth/profile` | Registration, sessions, and profile management |
-| Medication | `/medications` | Manage active and inactive medications |
+| Medication | `/medications` | Organize records with personal labels and date-derived scheduled/active/ended status |
 | Intake | `/intake` | Record one intake status per medication per day |
 | Side effects | `/side-effects` | Record and review side effects |
-| Patient dashboard | `/dashboard` | Adherence summaries and charts |
-| Clinician | `/clinician/patients` | Read-only views of assigned patients |
+| Patient overview | `/` | A today-focused snapshot of manually recorded information |
+| Patient dashboard | `/dashboard` | Filter intake and side-effect summaries by 7/30/90 days, custom dates, or medication |
+| Clinician | `/clinician/patients` | Review assigned patient records and send messages, feedback, or non-urgent review requests |
+| Messages | `/messages` | Private in-app coordination between patients and their assigned clinician |
 | Health check | `/healthz` | Render readiness check; returns no user or configuration data |
+
+The shared navigation includes a system-aware light/dark theme preference. Patient-defined medication categories are organizational labels only; the app does not recommend medicines or treatments. Messages and review requests are not monitored in real time and must not be used for emergencies.
 
 ## Production deployment on Render
 
@@ -52,11 +56,11 @@ The Render host is suitable for an ordinary small web application operationally,
 ## Privacy and access model
 
 - `.env` and `.env.*` are ignored; `.env.example` contains placeholders only. Never commit a populated environment file, database export, or real patient data.
-- Public registration intentionally allows both patient and clinician roles. Patients can choose an active clinician from the signup list; assigned clinicians can read those patients' medication, intake, and side-effect records.
+- Public registration intentionally allows both patient and clinician roles. Patients can choose an active clinician from the signup list; assigned clinicians can view those patients' medication, intake, and side-effect records and exchange in-app messages.
 - Clinician registration does not verify professional credentials, and the app has no administrator approval workflow or MFA. A person may create a clinician account and be selected by a patient. This is an explicit product policy, not verified provider identity; do not treat the app as a trusted clinical system until clinician verification and appropriate access governance are added.
 - Account deactivation prevents future sign-in. Restoring a deactivated account currently requires a database administrator; there is no in-app admin console.
 - Use synthetic records for demos and testing.
 
 ## Tests and checks
 
-`npm test` checks EJS compilation, view includes/render targets, representative page rendering, and the signed-in route guard. The suite does not create or modify production records. `npm audit --omit=dev` checks installed production dependencies against the npm advisory database.
+`npm test` checks EJS compilation, view includes/render targets, representative page rendering, date-derived medication status, dashboard ownership/range filters, clinician messaging authorization, and authentication behavior. The suite does not create or modify production records. `npm audit --omit=dev` checks installed production dependencies against the npm advisory database.

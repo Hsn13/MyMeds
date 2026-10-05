@@ -6,9 +6,22 @@ const ejs = require("ejs");
 const express = require("express");
 const session = require("express-session");
 const User = require("../models/User.js");
+const Medication = require("../models/Medication.js");
+const IntakeLog = require("../models/IntakeLog.js");
+const SideEffect = require("../models/SideEffect.js");
+const Message = require("../models/Message.js");
 const authController = require("../controllers/auth.js");
+const dashboardController = require("../controllers/dashboard.js");
+const messagesController = require("../controllers/messages.js");
+const intakeLogsController = require("../controllers/intakeLogs.js");
 const isSignedIn = require("../middleware/is-signed-in.js");
 const csrfProtection = require("../middleware/csrf-protection.js");
+const { buildAdherenceTrend } = require("../utils/dashboard-metrics.js");
+const {
+  getMedicationStatus,
+  isMedicationActiveOn,
+} = require("../utils/medication-status.js");
+const { parseDateOnly } = require("../utils/date-only.js");
 
 const root = path.resolve(__dirname, "..");
 
@@ -88,17 +101,26 @@ test("application pages render with empty and example data", async () => {
     notes: "",
   };
   const pages = {
-    "homepage.ejs": { user: null },
+    "homepage.ejs": {
+      user: null,
+      todaySummary: null,
+      recentSideEffects: [],
+    },
     "auth/sign-in.ejs": { user: null },
     "auth/sign-up.ejs": { user: null, clinicians: [] },
     "auth/profile.ejs": {
       user: null,
       profileUser: { username: "example", role: "patient", name: "Example", email: "example@example.test" },
     },
-    "medications/index.ejs": { user: null, medications: [], showInactive: false },
+    "medications/index.ejs": {
+      user: null,
+      medications: [],
+      medicationStatuses: new Map(),
+      showInactive: false,
+    },
     "medications/new.ejs": { user: null },
     "medications/edit.ejs": { user: null, medication },
-    "medications/show.ejs": { user: null, medication },
+    "medications/show.ejs": { user: null, medication, medicationStatus: "Active" },
     "intake/index.ejs": { user: null, medications: [], logs: [], logMap: {}, selectedDate: date },
     "intake/new.ejs": { user: null, medications: [], selectedMedicationId: null, selectedDate: "2026-01-15" },
     "intake/edit.ejs": {
@@ -119,6 +141,13 @@ test("application pages render with empty and example data", async () => {
       severityData: [0, 0, 0, 0, 0],
       weeklyTrend: [],
       pieData: { taken: 0, missed: 0, late: 0 },
+      totalLogs: 0,
+      medications: [],
+      selectedMedicationId: "",
+      range: "7",
+      fromDate: "2026-01-09",
+      toDate: "2026-01-15",
+      filterError: null,
     },
     "clinician/patients.ejs": { user: null, patients: [] },
     "clinician/patient-detail.ejs": {
@@ -128,6 +157,24 @@ test("application pages render with empty and example data", async () => {
       medications: [],
       intakeLogs: [],
       sideEffects: [],
+      medicationStatuses: new Map(),
+    },
+    "messages/inbox.ejs": {
+      user: null,
+      role: "patient",
+      threads: [],
+      clinician: null,
+      unreadCount: 0,
+    },
+    "messages/thread.ejs": {
+      user: null,
+      patient: null,
+      clinician: null,
+      messages: [],
+      currentUserId: "user-id",
+      error: null,
+      validationError: false,
+      canCompose: false,
     },
   };
 
@@ -145,6 +192,266 @@ test("application pages render with empty and example data", async () => {
       );
     }
   }
+});
+
+test("medication status follows UTC calendar dates and manual visibility", () => {
+  const medication = {
+    isActive: true,
+    startDate: new Date("2026-01-10T00:00:00.000Z"),
+    endDate: new Date("2026-01-12T00:00:00.000Z"),
+  };
+
+  assert.equal(getMedicationStatus(medication, new Date("2026-01-09T23:59:00Z")), "Scheduled");
+  assert.equal(getMedicationStatus(medication, new Date("2026-01-10T23:59:00Z")), "Active");
+  assert.equal(getMedicationStatus(medication, new Date("2026-01-12T23:59:00Z")), "Active");
+  assert.equal(getMedicationStatus(medication, new Date("2026-01-13T00:00:00Z")), "Ended");
+  assert.equal(isMedicationActiveOn(medication, new Date("2026-01-12T12:00:00Z")), true);
+  assert.equal(isMedicationActiveOn(medication, new Date("2026-01-13T00:00:00Z")), false);
+  assert.equal(
+    getMedicationStatus({ ...medication, isActive: false }, new Date("2026-01-11T00:00:00Z")),
+    "Inactive",
+  );
+});
+
+test("date-only parsing rejects impossible calendar dates", () => {
+  assert.equal(
+    parseDateOnly("2024-02-29")?.toISOString(),
+    "2024-02-29T00:00:00.000Z",
+  );
+  assert.equal(parseDateOnly("2025-02-29"), null);
+  assert.equal(parseDateOnly("2026-13-01"), null);
+  assert.equal(parseDateOnly(["2026-01-01"]), null);
+});
+
+test("analytics trend leaves unrecorded days empty and calculates daily percentages", () => {
+  const logs = [
+    { date: new Date("2026-01-14T00:00:00Z"), status: "taken" },
+    { date: new Date("2026-01-14T00:00:00Z"), status: "missed" },
+    { date: new Date("2026-01-15T00:00:00Z"), status: "missed" },
+  ];
+  const trend = buildAdherenceTrend(
+    logs,
+    new Date("2026-01-13T00:00:00Z"),
+    new Date("2026-01-15T00:00:00Z"),
+  );
+
+  assert.deepEqual(trend.map(({ date, adherence }) => [date, adherence]), [
+    ["2026-01-13", null],
+    ["2026-01-14", 50],
+    ["2026-01-15", 0],
+  ]);
+});
+
+test("dashboard filters remain scoped to the signed-in user's medication records", async (t) => {
+  const originals = {
+    medicationFind: Medication.find,
+    intakeFind: IntakeLog.find,
+    sideEffectFind: SideEffect.find,
+  };
+  const ownerId = "owner-id";
+  const meds = [
+    {
+      _id: "med-a",
+      userId: ownerId,
+      name: "Medication A",
+      startDate: new Date("2020-01-01T00:00:00Z"),
+      endDate: null,
+      isActive: true,
+    },
+    {
+      _id: "med-b",
+      userId: ownerId,
+      name: "Medication B",
+      startDate: new Date("2020-01-01T00:00:00Z"),
+      endDate: null,
+      isActive: true,
+    },
+  ];
+  let medicationFilter;
+  let logFilter;
+  Medication.find = (filter) => {
+    medicationFilter = filter;
+    return { sort: async () => meds };
+  };
+  IntakeLog.find = (filter) => {
+    logFilter = filter;
+    return {
+      lean: async () => [
+        { medicationId: "med-a", date: new Date(), status: "taken" },
+        { medicationId: "med-a", date: new Date(), status: "missed" },
+      ],
+    };
+  };
+  SideEffect.find = (filter) => {
+    assert.deepEqual(filter.medicationId.$in, ["med-a"]);
+    return { lean: async () => [] };
+  };
+
+  const app = express();
+  app.set("views", path.join(root, "views"));
+  app.set("view engine", "ejs");
+  app.use((req, res, next) => {
+    req.session = { user: { _id: ownerId, role: "patient" } };
+    res.locals.user = req.session.user;
+    res.locals.csrfToken = "test-token";
+    res.locals.cspNonce = "test-nonce";
+    next();
+  });
+  app.use("/dashboard", dashboardController);
+  const server = app.listen(0);
+  t.after(() => {
+    server.close();
+    Medication.find = originals.medicationFind;
+    IntakeLog.find = originals.intakeFind;
+    SideEffect.find = originals.sideEffectFind;
+  });
+
+  const response = await fetch(
+    `http://127.0.0.1:${server.address().port}/dashboard?range=30&medicationId=med-a`,
+  );
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.deepEqual(medicationFilter, { userId: ownerId });
+  assert.deepEqual(logFilter.medicationId.$in, ["med-a"]);
+  assert.equal(
+    (logFilter.date.$lt.getTime() - logFilter.date.$gte.getTime()) / 86_400_000,
+    30,
+  );
+  assert.match(html, /Medication A/);
+  assert.match(html, /Medication B/); // Both owned medications remain available in the filter.
+});
+
+test("intake entries cannot be recorded outside a medication date range", async (t) => {
+  const originalFindOne = Medication.findOne;
+  const originalLogFindOne = IntakeLog.findOne;
+  const originalCreate = IntakeLog.create;
+  let createCalled = false;
+  Medication.findOne = async () => ({
+    isActive: true,
+    startDate: new Date("2026-01-01T00:00:00Z"),
+    endDate: new Date("2026-01-10T00:00:00Z"),
+  });
+  IntakeLog.findOne = async () => null;
+  IntakeLog.create = async () => {
+    createCalled = true;
+  };
+
+  const app = express();
+  app.use(express.urlencoded({ extended: false }));
+  app.use((req, res, next) => {
+    req.session = { user: { _id: "owner-id" } };
+    next();
+  });
+  app.use("/intake", intakeLogsController);
+  const server = app.listen(0);
+  t.after(() => {
+    server.close();
+    Medication.findOne = originalFindOne;
+    IntakeLog.findOne = originalLogFindOne;
+    IntakeLog.create = originalCreate;
+  });
+
+  const origin = `http://127.0.0.1:${server.address().port}/intake`;
+  const invalidDate = await fetch(origin, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      medicationId: "med-a",
+      date: "2026-02-30",
+      status: "taken",
+    }),
+  });
+  assert.equal(invalidDate.status, 400);
+
+  const endedCourse = await fetch(origin, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      medicationId: "med-a",
+      date: "2026-01-11",
+      status: "taken",
+    }),
+  });
+  assert.equal(endedCourse.status, 400);
+  assert.match(await endedCourse.text(), /active date range/);
+  assert.equal(createCalled, false);
+});
+
+test("messaging rejects unassigned patient access and patient-only review flags", async (t) => {
+  const originalFindOne = User.findOne;
+  const originalCreate = Message.create;
+  let createCalled = false;
+  let currentUser = {
+    _id: "clinician-id",
+    role: "clinician",
+    name: "Example Clinician",
+  };
+  User.findOne = () => ({ select: async () => null });
+  Message.create = async () => {
+    createCalled = true;
+  };
+
+  const app = express();
+  app.set("views", path.join(root, "views"));
+  app.set("view engine", "ejs");
+  app.use(express.urlencoded({ extended: false }));
+  app.use((req, res, next) => {
+    req.session = { user: currentUser };
+    res.locals.user = req.session.user;
+    res.locals.csrfToken = "test-token";
+    res.locals.cspNonce = "test-nonce";
+    next();
+  });
+  app.use("/messages", messagesController);
+  const server = app.listen(0);
+  t.after(() => {
+    server.close();
+    User.findOne = originalFindOne;
+    Message.create = originalCreate;
+  });
+
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const assignedPatientId = "012345678901234567890123";
+  const inaccessible = await fetch(
+    `${origin}/messages/thread/${assignedPatientId}`,
+  );
+  assert.equal(inaccessible.status, 404);
+  assert.match(await inaccessible.text(), /Messaging is available only/);
+  assert.equal(createCalled, false);
+
+  const unauthorizedPost = await fetch(
+    `${origin}/messages/thread/${assignedPatientId}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ body: "A private test message" }),
+      redirect: "manual",
+    },
+  );
+  assert.equal(unauthorizedPost.status, 404);
+  assert.equal(createCalled, false);
+
+  currentUser = {
+    _id: "patient-id",
+    role: "patient",
+    name: "Example Patient",
+    assignedClinicianId: "clinician-id",
+  };
+  const forbiddenReviewFlag = await fetch(`${origin}/messages/thread`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      type: "review_flag",
+      body: "Patients cannot create clinician review flags.",
+    }),
+    redirect: "manual",
+  });
+  assert.equal(forbiddenReviewFlag.status, 302);
+  assert.equal(
+    forbiddenReviewFlag.headers.get("location"),
+    "/messages/thread?error=invalid",
+  );
+  assert.equal(createCalled, false);
 });
 
 test("CSRF middleware issues session tokens and rejects invalid submissions", () => {

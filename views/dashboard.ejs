@@ -3,177 +3,162 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard — MyMeds</title>
+  <title>My history — MyMeds</title>
   <link rel="stylesheet" href="/css/style.css">
-  <!-- Chart.js via CDN — realistic choice for a learning project -->
   <script src="/vendor/chart.umd.js"></script>
 </head>
 <body>
   <%- include('navbar') %>
 
   <main class="main-content">
-    <div class="page-header">
-      <h1>📊 Dashboard</h1>
+    <div class="page-header dashboard-heading">
+      <div>
+        <span class="eyebrow">YOUR PERSONAL RECORD</span>
+        <h1>Intake &amp; wellbeing</h1>
+        <p class="page-subtitle">A view of the entries you recorded — not a clinical assessment.</p>
+      </div>
     </div>
 
-    <!-- ── Stat Cards Row ── -->
-    <div class="stats-grid">
-      <div class="stat-card stat-card-primary">
-        <span class="stat-icon">🎯</span>
+    <form class="analytics-filters" method="GET" action="/dashboard">
+      <label>
+        <span>Date range</span>
+        <select name="range" aria-label="Date range">
+          <option value="7" <%= range === "7" ? "selected" : "" %>>Last 7 days</option>
+          <option value="30" <%= range === "30" ? "selected" : "" %>>Last 30 days</option>
+          <option value="90" <%= range === "90" ? "selected" : "" %>>Last 90 days</option>
+          <option value="custom" <%= range === "custom" ? "selected" : "" %>>Custom range</option>
+        </select>
+      </label>
+      <label><span>From</span><input type="date" name="from" value="<%= fromDate %>" max="<%= new Date().toISOString().slice(0, 10) %>"></label>
+      <label><span>To</span><input type="date" name="to" value="<%= toDate %>" max="<%= new Date().toISOString().slice(0, 10) %>"></label>
+      <label>
+        <span>Medication</span>
+        <select name="medicationId">
+          <option value="">All medications</option>
+          <% medications.forEach((medication) => { %>
+            <option value="<%= medication._id %>" <%= selectedMedicationId === medication._id.toString() ? "selected" : "" %>><%= medication.name %></option>
+          <% }) %>
+        </select>
+      </label>
+      <button class="btn btn-primary" type="submit">Apply filters</button>
+    </form>
+    <% if (filterError) { %><p class="inline-notice" role="status"><%= filterError %></p><% } %>
+
+    <section class="stats-grid" aria-label="Summary for selected period">
+      <article class="stat-card stat-card-primary">
+        <span class="stat-icon" aria-hidden="true">◉</span>
         <div class="stat-content">
-          <span class="stat-value"><%= adherenceScore %>%</span>
-          <span class="stat-label">Adherence Score</span>
+          <span class="stat-value"><% if (totalLogs) { %><%= adherenceScore %>%<% } else { %>—<% } %></span>
+          <span class="stat-label">Entries marked taken</span>
+          <span class="stat-caption"><%= totalLogs ? `${pieData.taken} of ${totalLogs} entries` : "No intake entries in this period" %></span>
         </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">💊</span>
-        <div class="stat-content">
-          <span class="stat-value"><%= activeMedCount %></span>
-          <span class="stat-label">Active Medications</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">🔥</span>
-        <div class="stat-content">
-          <span class="stat-value"><%= missedDoseStreak %></span>
-          <span class="stat-label">Missed-Dose Streak (days)</span>
-        </div>
-      </div>
-      <div class="stat-card stat-card-warning">
-        <span class="stat-icon">⚠️</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-icon" aria-hidden="true">✳</span>
+        <div class="stat-content"><span class="stat-value"><%= activeMedCount %></span><span class="stat-label">Active courses today</span></div>
+      </article>
+      <article class="stat-card">
+        <span class="stat-icon" aria-hidden="true">↗</span>
+        <div class="stat-content"><span class="stat-value"><%= pieData.missed %></span><span class="stat-label">Entries marked missed</span></div>
+      </article>
+      <article class="stat-card">
+        <span class="stat-icon" aria-hidden="true">✎</span>
         <div class="stat-content">
           <% if (mostMissedMedication) { %>
-            <span class="stat-value" style="font-size:1.1rem;"><%= mostMissedMedication.name %></span>
-            <span class="stat-label">Most Missed (<%= mostMissedMedication.missCount %> times)</span>
+            <span class="stat-value stat-value-name"><%= mostMissedMedication.name %></span>
+            <span class="stat-label">Most missed · <%= mostMissedMedication.missCount %> <%= mostMissedMedication.missCount === 1 ? "entry" : "entries" %></span>
           <% } else { %>
-            <span class="stat-value">—</span>
-            <span class="stat-label">Most Missed Med</span>
+            <span class="stat-value">—</span><span class="stat-label">No missed entries</span>
           <% } %>
         </div>
-      </div>
-    </div>
+      </article>
+    </section>
 
-    <!-- ── Charts Row ── -->
-    <div class="charts-grid">
-      <!-- 1. Adherence % Line Chart (last 7 days) -->
-      <div class="chart-card chart-card-wide">
-        <h3>Adherence Trend (Last 7 Days)</h3>
-        <canvas id="adherenceChart"></canvas>
-      </div>
-
-      <!-- 2. Taken vs Missed vs Late Pie Chart -->
-      <div class="chart-card">
-        <h3>Intake Breakdown</h3>
-        <canvas id="pieChart"></canvas>
-      </div>
-
-      <!-- 3. Side Effect Severity Bar Chart -->
-      <div class="chart-card">
-        <h3>Side Effects by Severity</h3>
-        <canvas id="severityChart"></canvas>
-      </div>
-    </div>
+    <section class="charts-grid">
+      <article class="chart-card chart-card-wide">
+        <div class="chart-heading"><div><h2>Intake entries over time</h2><p>Daily percentage of entries marked taken. Days without entries are left blank.</p></div></div>
+        <div class="chart-canvas-wrap"><canvas id="adherenceChart" aria-label="Daily intake history chart"></canvas></div>
+      </article>
+      <article class="chart-card">
+        <h2>Entry breakdown</h2>
+        <% if (totalLogs) { %><div class="chart-canvas-wrap chart-canvas-compact"><canvas id="pieChart" aria-label="Intake entry breakdown chart"></canvas></div><% } else { %><div class="chart-empty">Log intake entries to see a breakdown for this period.</div><% } %>
+      </article>
+      <article class="chart-card">
+        <h2>Reported side-effect severity</h2>
+        <% if (severityData.reduce((sum, count) => sum + count, 0)) { %><div class="chart-canvas-wrap chart-canvas-compact"><canvas id="severityChart" aria-label="Side-effect severity chart"></canvas></div><% } else { %><div class="chart-empty">No side effects were reported in this period.</div><% } %>
+      </article>
+    </section>
+    <p class="prototype-note">These charts summarize information entered by you. They are not medical advice, do not assess treatment effectiveness, and are not monitored for urgent concerns.</p>
   </main>
 
-  <!-- Data block: EJS renders server variables into plain JSON here.
-       Kept in its own script tag so the Chart.js logic below is pure JS
-       and won't trigger "Expression expected" in your linter. -->
   <script nonce="<%= cspNonce %>">
-    const weeklyLabels  = <%- JSON.stringify(weeklyTrend.map(d => d.label)) %>;
-    const weeklyData    = <%- JSON.stringify(weeklyTrend.map(d => d.adherence)) %>;
-    const pieData       = <%- JSON.stringify(pieData) %>;
-    const severityData  = <%- JSON.stringify(severityData) %>;
+    const weeklyLabels = <%- JSON.stringify(weeklyTrend.map((day) => day.label)) %>;
+    const weeklyData = <%- JSON.stringify(weeklyTrend.map((day) => day.adherence)) %>;
+    const intakeData = <%- JSON.stringify(pieData) %>;
+    const sideEffectData = <%- JSON.stringify(severityData) %>;
   </script>
-
-  <!-- Chart logic: pure JS — no EJS tags, linter stays happy -->
   <script nonce="<%= cspNonce %>">
-    // ── 1. Adherence Line Chart ──────────────────────────────────────────────
-    new Chart(document.getElementById('adherenceChart'), {
-      type: 'line',
+    const palette = {
+      primary: "#17766d",
+      taken: "#258365",
+      missed: "#bb554d",
+      late: "#bd852b",
+      line: "#dce9e5"
+    };
+    new Chart(document.getElementById("adherenceChart"), {
+      type: "line",
       data: {
         labels: weeklyLabels,
         datasets: [{
-          label: 'Adherence %',
+          label: "Entries marked taken",
           data: weeklyData,
-          borderColor: '#3498db',
-          backgroundColor: 'rgba(52, 152, 219, 0.1)',
+          borderColor: palette.primary,
+          backgroundColor: "rgba(23, 118, 109, .12)",
           fill: true,
-          tension: 0.3,
-          pointBackgroundColor: '#3498db',
-          pointRadius: 5,
-          spanGaps: true  // skip null values (days with no logs)
+          tension: .32,
+          spanGaps: true,
+          pointRadius: 3,
+          pointHoverRadius: 6
         }]
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         scales: {
-          y: {
-            min: 0,
-            max: 100,
-            title: { display: true, text: 'Adherence %' },
-            ticks: { callback: v => v + '%' }
-          }
+          y: { min: 0, max: 100, ticks: { callback: (value) => `${value}%` } },
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 10, maxRotation: 0 } }
         },
         plugins: {
           legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => ctx.parsed.y !== null ? ctx.parsed.y + '%' : 'No data'
-            }
-          }
+          tooltip: { callbacks: { label: (context) => context.parsed.y == null ? "No entries" : `${context.parsed.y}% marked taken` } }
         }
       }
     });
-
-    // ── 2. Pie Chart: Taken / Missed / Late ──────────────────────────────────
-    new Chart(document.getElementById('pieChart'), {
-      type: 'pie',
+    <% if (totalLogs) { %>
+    new Chart(document.getElementById("pieChart"), {
+      type: "doughnut",
       data: {
-        labels: ['Taken', 'Missed', 'Late'],
-        datasets: [{
-          data: [pieData.taken, pieData.missed, pieData.late],
-          backgroundColor: ['#27ae60', '#e74c3c', '#f39c12'],
-          borderColor: '#fff',
-          borderWidth: 2
-        }]
+        labels: ["Taken", "Missed", "Late"],
+        datasets: [{ data: [intakeData.taken, intakeData.missed, intakeData.late], backgroundColor: [palette.taken, palette.missed, palette.late], borderWidth: 0, hoverOffset: 5 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, cutout: "66%", plugins: { legend: { position: "bottom", labels: { usePointStyle: true, padding: 18 } } } }
+    });
+    <% } %>
+    <% if (severityData.reduce((sum, count) => sum + count, 0)) { %>
+    new Chart(document.getElementById("severityChart"), {
+      type: "bar",
+      data: {
+        labels: ["1", "2", "3", "4", "5"],
+        datasets: [{ label: "Reports", data: sideEffectData, backgroundColor: ["#3d9b72", "#84a84a", "#d1a23a", "#ce773e", "#b9544b"], borderRadius: 5, maxBarThickness: 40 }]
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-          legend: { position: 'bottom' }
-        }
+        maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { title: { display: true, text: "Severity (1 = mild, 5 = severe)" }, grid: { display: false } } },
+        plugins: { legend: { display: false } }
       }
     });
-
-    // ── 3. Severity Bar Chart ─────────────────────────────────────────────────
-    new Chart(document.getElementById('severityChart'), {
-      type: 'bar',
-      data: {
-        labels: ['1 - Mild', '2 - Light', '3 - Moderate', '4 - Heavy', '5 - Severe'],
-        datasets: [{
-          label: 'Count',
-          data: severityData,
-          backgroundColor: ['#27ae60', '#f1c40f', '#f39c12', '#e67e22', '#e74c3c'],
-          borderRadius: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { precision: 0 },
-            title: { display: true, text: 'Number of Reports' }
-          }
-        },
-        plugins: {
-          legend: { display: false }
-        }
-      }
-    });
+    <% } %>
   </script>
 </body>
 </html>

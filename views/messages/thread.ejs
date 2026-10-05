@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversation — MyMeds</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../navbar') %>
+  <main class="main-content">
+    <div class="page-header">
+      <div><span class="eyebrow">ASSIGNED CARE MESSAGES</span><h1><%= patient ? patient.name : "Conversation" %></h1><p class="page-subtitle"><%= patient && clinician ? `With ${currentUserId === patient._id.toString() ? clinician.name : patient.name}` : "Assigned clinician messaging" %></p></div>
+      <a href="/messages" class="btn btn-secondary">← Inbox</a>
+    </div>
+
+    <% if (error) { %>
+      <div class="inline-notice" role="status"><%= error %></div>
+    <% } %>
+    <% if (canCompose) { %>
+      <section class="conversation-panel" aria-label="Conversation messages">
+        <% if (!messages.length) { %>
+          <div class="empty-state conversation-empty"><h2>Start a conversation</h2><p>Use this space for non-urgent care coordination and questions.</p></div>
+        <% } else { %>
+          <div class="conversation-list">
+            <% messages.forEach((message) => { %>
+              <article class="message-bubble <%= message.senderId.toString() === currentUserId ? 'message-own' : '' %>">
+                <div class="message-bubble-meta">
+                  <span><%= message.type === "review_flag" ? "Review requested" : message.type === "feedback" ? "Clinician feedback" : message.senderId.toString() === currentUserId ? "You" : patient && message.senderId.toString() === patient._id.toString() ? patient.name : clinician.name %></span>
+                  <time datetime="<%= message.createdAt.toISOString() %>"><%= message.createdAt.toLocaleString() %></time>
+                </div>
+                <p><%= message.body %></p>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+      <% if (canCompose) { %>
+        <form class="message-compose" method="POST" action="<%= patient && currentUserId === patient._id.toString() ? '/messages/thread' : `/messages/thread/${encodeURIComponent(patient._id.toString())}` %>">
+          <%- include('../csrf-field') %>
+          <label for="message-body">Write a message</label>
+          <% if (validationError) { %><p class="inline-notice" role="alert">Enter a message up to 3,000 characters. Clinicians can choose a message type; patients can send a standard message.</p><% } %>
+          <% if (patient && currentUserId !== patient._id.toString()) { %>
+            <label class="message-type-label" for="message-type">Message type</label>
+            <select id="message-type" name="type">
+              <option value="message">Message</option>
+              <option value="feedback">Feedback</option>
+              <option value="review_flag">Request a non-urgent review</option>
+            </select>
+          <% } %>
+          <textarea id="message-body" name="body" rows="4" maxlength="3000" required placeholder="Keep your message clear and non-urgent."></textarea>
+          <div class="message-compose-footer"><span>Messages are stored here, not monitored in real time, and are not medical or emergency care.</span><button class="btn btn-primary" type="submit">Send message</button></div>
+        </form>
+      <% } %>
+    <% } %>
+    <p class="prototype-note">MyMeds is a prototype communication aid, not a clinical record or emergency service. For urgent concerns, contact local emergency services or your healthcare provider directly.</p>
+  </main>
+</body>
+</html>

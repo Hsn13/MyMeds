@@ -22,6 +22,12 @@ const medicationSchema = new mongoose.Schema(
       required: true,
       trim: true, // e.g. "Once daily", "Twice daily", "Every 8 hours"
     },
+    category: {
+      type: String,
+      trim: true,
+      maxlength: 60,
+      default: "",
+    },
     startDate: {
       type: Date,
       required: true,

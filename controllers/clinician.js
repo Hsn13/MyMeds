@@ -6,6 +6,7 @@ const Medication = require("../models/Medication.js");
 const IntakeLog = require("../models/IntakeLog.js");
 const SideEffect = require("../models/SideEffect.js");
 const logError = require("../utils/log-error.js");
+const { getMedicationStatus } = require("../utils/medication-status.js");
 
 // Apply isClinician middleware to ALL routes in this router
 router.use(isClinician);
@@ -76,6 +77,12 @@ router.get("/patients/:patientId", async (req, res) => {
       intakeLogs,
       sideEffects,
       adherenceScore,
+      medicationStatuses: new Map(
+        medications.map((medication) => [
+          medication._id.toString(),
+          getMedicationStatus(medication),
+        ]),
+      ),
     });
   } catch (err) {
     logError("Clinician patient detail failed", err);

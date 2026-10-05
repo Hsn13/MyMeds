@@ -4,174 +4,143 @@ const Medication = require("../models/Medication.js");
 const IntakeLog = require("../models/IntakeLog.js");
 const SideEffect = require("../models/SideEffect.js");
 const logError = require("../utils/log-error.js");
+const { getMedicationStatus, startOfUtcDay } = require("../utils/medication-status.js");
+const { buildAdherenceTrend } = require("../utils/dashboard-metrics.js");
+const { parseDateOnly } = require("../utils/date-only.js");
 
-// ─── Helper: get the start of a day (midnight UTC) ──────────────────────────
-function startOfDay(date) {
-  const d = new Date(date);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
-}
+const DAY_MS = 86_400_000;
 
-// ─── Helper: get the end of a day (23:59:59 UTC) ─────────────────────────────
-function endOfDay(date) {
-  const d = new Date(date);
-  d.setUTCHours(23, 59, 59, 999);
-  return d;
-}
-
-// ─── DASHBOARD ────────────────────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
     const userId = req.session.user._id;
+    const medications = await Medication.find({ userId }).sort({ name: 1 });
+    const today = startOfUtcDay();
+    const range = ["7", "30", "90", "custom"].includes(req.query.range)
+      ? req.query.range
+      : "7";
+    let startDate = new Date(today);
+    let endDate = new Date(today);
+    let filterError = null;
 
-    // --- 1. Get all user's medications (active only for current stats) ---
-    const activeMeds = await Medication.find({ userId, isActive: true });
-    const allMeds = await Medication.find({ userId });
-    const medicationIds = allMeds.map((m) => m._id);
-
-    // --- 2. Overall Adherence Score ---
-    // Count total intake logs and how many were "taken"
-    const totalLogs = await IntakeLog.countDocuments({
-      medicationId: { $in: medicationIds },
-    });
-    const takenLogs = await IntakeLog.countDocuments({
-      medicationId: { $in: medicationIds },
-      status: "taken",
-    });
-    const missedLogs = await IntakeLog.countDocuments({
-      medicationId: { $in: medicationIds },
-      status: "missed",
-    });
-    const lateLogs = await IntakeLog.countDocuments({
-      medicationId: { $in: medicationIds },
-      status: "late",
-    });
-
-    const adherenceScore =
-      totalLogs > 0 ? Math.round((takenLogs / totalLogs) * 100) : 0;
-
-    // --- 3. Most Missed Medication ---
-    // Aggregate: group intake logs by medicationId, count "missed" status
-    const missedByMed = await IntakeLog.aggregate([
-      { $match: { medicationId: { $in: medicationIds }, status: "missed" } },
-      { $group: { _id: "$medicationId", missCount: { $sum: 1 } } },
-      { $sort: { missCount: -1 } },
-      { $limit: 1 },
-    ]);
-
-    let mostMissedMedication = null;
-    if (missedByMed.length > 0) {
-      mostMissedMedication = await Medication.findById(missedByMed[0]._id);
-      mostMissedMedication = {
-        name: mostMissedMedication ? mostMissedMedication.name : "Unknown",
-        missCount: missedByMed[0].missCount,
-      };
-    }
-
-    // --- 4. Side Effects by Severity (for bar chart) ---
-    // Group all side effects by severity level (1-5), count occurrences
-    const sideEffectsBySeverity = await SideEffect.aggregate([
-      {
-        $match: { medicationId: { $in: medicationIds } },
-      },
-      {
-        $group: { _id: "$severity", count: { $sum: 1 } },
-      },
-      { $sort: { _id: 1 } },
-    ]);
-
-    // Fill in missing severity levels with 0 for the chart
-    const severityData = [0, 0, 0, 0, 0]; // index 0 = severity 1, etc.
-    sideEffectsBySeverity.forEach((item) => {
-      severityData[item._id - 1] = item.count;
-    });
-
-    // --- 5. Weekly Adherence Trend (last 7 days) ---
-    // For each of the last 7 days, calculate taken/total ratio
-    const weeklyTrend = [];
-    for (let i = 6; i >= 0; i--) {
-      const dayDate = new Date();
-      dayDate.setUTCDate(dayDate.getUTCDate() - i);
-      const dayStart = startOfDay(dayDate);
-      const dayEnd = endOfDay(dayDate);
-
-      const dayTotal = await IntakeLog.countDocuments({
-        medicationId: { $in: medicationIds },
-        date: { $gte: dayStart, $lte: dayEnd },
-      });
-      const dayTaken = await IntakeLog.countDocuments({
-        medicationId: { $in: medicationIds },
-        date: { $gte: dayStart, $lte: dayEnd },
-        status: "taken",
-      });
-
-      const label = dayDate.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-
-      weeklyTrend.push({
-        label,
-        adherence:
-          dayTotal > 0 ? Math.round((dayTaken / dayTotal) * 100) : null,
-      });
-    }
-
-    // --- 6. Missed-Dose Streak Detection ---
-    // Find the longest consecutive streak of days with at least one "missed" log
-    const recentLogs = await IntakeLog.find({
-      medicationId: { $in: medicationIds },
-    }).sort({ date: -1 });
-
-    // Group logs by date
-    const logsByDate = {};
-    recentLogs.forEach((log) => {
-      const dateKey = log.date.toISOString().split("T")[0];
-      if (!logsByDate[dateKey]) logsByDate[dateKey] = [];
-      logsByDate[dateKey].push(log);
-    });
-
-    // Count consecutive missed days from the most recent logged day.
-    const sortedDates = Object.keys(logsByDate).sort().reverse();
-    let missedDoseStreak = 0;
-    let previousMissedDate = null;
-
-    for (const dateKey of sortedDates) {
-      const dayLogs = logsByDate[dateKey];
-      const hasMissed = dayLogs.some((log) => log.status === "missed");
-      const dayDate = new Date(`${dateKey}T00:00:00.000Z`);
-
+    if (range === "custom") {
+      const requestedStartDate = parseDateOnly(req.query.from);
+      const requestedEndDate = parseDateOnly(req.query.to);
       if (
-        !hasMissed ||
-        (previousMissedDate &&
-          previousMissedDate.getTime() - dayDate.getTime() !== 86_400_000)
+        requestedStartDate &&
+        requestedEndDate &&
+        req.query.from <= req.query.to &&
+        req.query.to <= today.toISOString().slice(0, 10)
       ) {
-        break;
+        startDate = requestedStartDate;
+        endDate = requestedEndDate;
+        if ((endDate - startDate) / DAY_MS > 365) {
+          startDate = new Date(endDate.getTime() - 365 * DAY_MS);
+          filterError = "Custom date ranges are limited to one year.";
+        }
+      } else {
+        startDate.setUTCDate(startDate.getUTCDate() - 6);
+        filterError = "Choose valid start and end dates on or before today.";
       }
-
-      missedDoseStreak++;
-      previousMissedDate = dayDate;
+    } else {
+      startDate.setUTCDate(startDate.getUTCDate() - (Number(range) - 1));
     }
 
-    // --- 7. Pie chart data: Taken vs Missed vs Late ---
-    const pieData = {
-      taken: takenLogs,
-      missed: missedLogs,
-      late: lateLogs,
-    };
+    let selectedMedicationId = "";
+    if (req.query.medicationId) {
+      const selected = medications.find(
+        (medication) =>
+          medication._id.toString() === String(req.query.medicationId),
+      );
+      if (selected) {
+        selectedMedicationId = selected._id.toString();
+      } else {
+        filterError = "That medication is not in your list. Showing all medications.";
+      }
+    }
+
+    const matchingMedications = selectedMedicationId
+      ? medications.filter(
+          (medication) =>
+            medication._id.toString() === selectedMedicationId,
+        )
+      : medications;
+    const medicationIds = matchingMedications.map(
+      (medication) => medication._id,
+    );
+    const endExclusive = new Date(endDate.getTime() + DAY_MS);
+    const [logs, sideEffects] = medicationIds.length
+      ? await Promise.all([
+          IntakeLog.find({
+            medicationId: { $in: medicationIds },
+            date: { $gte: startDate, $lt: endExclusive },
+          }).lean(),
+          SideEffect.find({
+            medicationId: { $in: medicationIds },
+            startDate: { $gte: startDate, $lt: endExclusive },
+          }).lean(),
+        ])
+      : [[], []];
+
+    const pieData = { taken: 0, missed: 0, late: 0 };
+    const missedCountByMedication = new Map();
+    for (const log of logs) {
+      pieData[log.status]++;
+      if (log.status === "missed") {
+        const key = log.medicationId.toString();
+        missedCountByMedication.set(
+          key,
+          (missedCountByMedication.get(key) || 0) + 1,
+        );
+      }
+    }
+
+    const missedMedicationId = [...missedCountByMedication.entries()].sort(
+      (a, b) => b[1] - a[1],
+    )[0];
+    const mostMissedMedication = missedMedicationId
+      ? {
+          name:
+            medications.find(
+              (medication) =>
+                medication._id.toString() === missedMedicationId[0],
+            )?.name || "Unknown",
+          missCount: missedMedicationId[1],
+        }
+      : null;
+
+    const severityData = [0, 0, 0, 0, 0];
+    for (const effect of sideEffects) {
+      if (effect.severity >= 1 && effect.severity <= 5) {
+        severityData[effect.severity - 1]++;
+      }
+    }
+
+    const totalLogs = logs.length;
+    const adherenceScore = totalLogs
+      ? Math.round((pieData.taken / totalLogs) * 100)
+      : 0;
+    const weeklyTrend = buildAdherenceTrend(logs, startDate, endDate);
+    const activeMedCount = matchingMedications.filter(
+      (medication) => getMedicationStatus(medication, today) === "Active",
+    ).length;
 
     res.render("dashboard.ejs", {
       adherenceScore,
       mostMissedMedication,
-      severityData, // [count_sev1, count_sev2, ..., count_sev5]
-      weeklyTrend, // [{label, adherence}, ...]
-      pieData, // {taken, missed, late}
-      missedDoseStreak,
-      activeMedCount: activeMeds.length,
+      severityData,
+      weeklyTrend,
+      pieData,
+      activeMedCount,
+      totalLogs,
+      medications,
+      selectedMedicationId,
+      range,
+      fromDate: startDate.toISOString().slice(0, 10),
+      toDate: endDate.toISOString().slice(0, 10),
+      filterError,
     });
   } catch (err) {
-    logError("Dashboard loading failed", err);
+    logError("Dashboard loading failed", err, res.locals.requestId);
     res.status(500).send("Error loading dashboard.");
   }
 });

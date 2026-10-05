@@ -5,18 +5,23 @@
   <div class="navbar-links">
     <% if (user) { %>
       <% if (user.role === "patient") { %>
-        <a href="/">Home</a>
         <a href="/dashboard">Dashboard</a>
         <a href="/medications">Medications</a>
         <a href="/intake">Intake Log</a>
         <a href="/side-effects">Side Effects</a>
+        <a href="/messages">Messages</a>
       <% } %>
       <% if (user.role === "clinician") { %>
         <a href="/clinician/patients">My Patients</a>
+        <a href="/messages">Messages</a>
       <% } %>
       <div class="navbar-user">
         <span class="navbar-username"><%= user.name %> (<%= user.role %>)</span>
         <a href="/auth/profile">Profile</a>
+        <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch color theme">
+          <span data-theme-icon aria-hidden="true">◐</span>
+          <span data-theme-label>Theme</span>
+        </button>
         <form action="/auth/sign-out" method="POST" class="navbar-sign-out">
           <%- include('csrf-field') %>
           <button type="submit" class="navbar-link-button">Sign Out</button>
@@ -26,6 +31,10 @@
       <a href="/">Home</a>
       <a href="/auth/sign-in">Sign In</a>
       <a href="/auth/sign-up">Sign Up</a>
+      <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch color theme">
+        <span data-theme-icon aria-hidden="true">◐</span>
+        <span data-theme-label>Theme</span>
+      </button>
     <% } %>
   </div>
 </nav>

@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MyMeds — Medication Tracker</title>
+  <meta name="theme-color" content="#f2f7f5">
+  <title>MyMeds — Your care, organized</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -11,53 +12,125 @@
 
   <main class="main-content">
     <% if (!user) { %>
-      <!-- Landing page for guests -->
-      <section class="hero">
-        <h1>🩺 MyMeds</h1>
-        <p class="hero-subtitle">Track your medications, log your adherence, and monitor side effects — all in one place.</p>
+      <section class="hero landing-hero">
+        <span class="eyebrow">A calmer way to stay organized</span>
+        <h1>Your medication routine,<br>in one clear place.</h1>
+        <p class="hero-subtitle">Keep a simple record of your medications, daily intake, and side effects — and choose to share updates with your assigned clinician.</p>
         <div class="hero-buttons">
-          <a href="/auth/sign-up" class="btn btn-primary">Get Started</a>
-          <a href="/auth/sign-in" class="btn btn-secondary">Sign In</a>
+          <a href="/auth/sign-up" class="btn btn-primary">Create your account</a>
+          <a href="/auth/sign-in" class="btn btn-secondary">Sign in</a>
         </div>
+        <p class="landing-note">A personal tracking tool — not a replacement for professional medical advice.</p>
+      </section>
+
+      <section class="landing-benefits" aria-label="What you can do">
+        <article class="landing-benefit">
+          <span class="benefit-icon" aria-hidden="true">01</span>
+          <h2>Keep your list current</h2>
+          <p>Organize medication details and see when a course is scheduled, active, or ended.</p>
+        </article>
+        <article class="landing-benefit">
+          <span class="benefit-icon" aria-hidden="true">02</span>
+          <h2>Notice your patterns</h2>
+          <p>Review intake history over a selected time period, without guessing from memory.</p>
+        </article>
+        <article class="landing-benefit">
+          <span class="benefit-icon" aria-hidden="true">03</span>
+          <h2>Share when you choose</h2>
+          <p>Keep a record of side effects and coordinate with your assigned clinician.</p>
+        </article>
       </section>
 
       <section class="disclaimer">
-        <h3>⚠️ Medical Disclaimer</h3>
-        <p>
-          This application is for <strong>tracking and organizational purposes only</strong>.
-          It does not provide medical advice, diagnosis, or treatment recommendations.
-          Always consult your healthcare provider before making any decisions about your medications.
-        </p>
+        <h3>Important to know</h3>
+        <p>MyMeds is a prototype for tracking and organization only. It does not provide medical advice, diagnosis, treatment, or emergency monitoring. Always consult a qualified healthcare professional about your care.</p>
       </section>
     <% } else { %>
-      <!-- Dashboard entry for logged-in patients -->
-      <section class="hero">
-        <h1>Welcome back, <%= user.name %>!</h1>
-        <p class="hero-subtitle">What would you like to do today?</p>
+      <section class="today-hero">
+        <div>
+          <span class="eyebrow">YOUR OVERVIEW · <%= new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }) %></span>
+          <h1>Good to see you, <%= user.name %>.</h1>
+          <p>Here is a simple snapshot of the information you have recorded today.</p>
+        </div>
+        <% if (todaySummary.activeMedicationCount) { %>
+          <a href="/intake/new" class="btn btn-primary">＋ Record intake</a>
+        <% } else if (todaySummary.medicationCount) { %>
+          <a href="/medications" class="btn btn-primary">View medication list</a>
+        <% } else { %>
+          <a href="/medications/new" class="btn btn-primary">＋ Add a medication</a>
+        <% } %>
       </section>
 
-      <section class="quick-actions">
-        <a href="/dashboard" class="card quick-card">
-          <span class="card-icon">📊</span>
-          <h3>Dashboard</h3>
-          <p>View your adherence stats and charts</p>
-        </a>
-        <a href="/medications" class="card quick-card">
-          <span class="card-icon">💊</span>
-          <h3>Medications</h3>
-          <p>Manage your medication list</p>
-        </a>
-        <a href="/intake" class="card quick-card">
-          <span class="card-icon">📅</span>
-          <h3>Log Intake</h3>
-          <p>Record today's doses</p>
-        </a>
-        <a href="/side-effects" class="card quick-card">
-          <span class="card-icon">⚠️</span>
-          <h3>Side Effects</h3>
-          <p>Report and track side effects</p>
-        </a>
+      <section class="today-metrics" aria-label="Today's tracking summary">
+        <article class="today-metric">
+          <span class="today-metric-icon" aria-hidden="true">✳</span>
+          <div><strong><%= todaySummary.activeMedicationCount %></strong><span>Active medication courses</span></div>
+        </article>
+        <article class="today-metric">
+          <span class="today-metric-icon" aria-hidden="true">✓</span>
+          <div><strong><%= todaySummary.loggedCount %></strong><span>Intake entries today</span></div>
+        </article>
+        <article class="today-metric">
+          <span class="today-metric-icon" aria-hidden="true">↗</span>
+          <div><strong><%= todaySummary.missedCount %></strong><span>Entries marked missed</span></div>
+        </article>
       </section>
+
+      <section class="today-content-grid">
+        <article class="surface-panel today-panel">
+          <div class="section-heading">
+            <div><span class="eyebrow">YOUR RECORD</span><h2>Recent intake</h2></div>
+            <a href="/intake">View history</a>
+          </div>
+          <% if (todaySummary.recentLogs.length) { %>
+            <div class="today-log-list">
+              <% todaySummary.recentLogs.forEach((log) => { %>
+                <div class="today-log-row">
+                  <span class="status-dot status-<%= log.status %>" aria-hidden="true"></span>
+                  <div><strong><%= log.medicationId?.name || "Medication" %></strong><span><%= log.status.charAt(0).toUpperCase() + log.status.slice(1) %> today</span></div>
+                  <a href="/intake/<%= log._id %>/edit">Edit entry</a>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="empty-state compact-empty">
+              <h3>No intake entries yet today</h3>
+              <p>Add an entry when you want to keep a record. MyMeds does not send dose reminders.</p>
+              <a class="btn btn-secondary" href="/intake/new">Add an entry</a>
+            </div>
+          <% } %>
+        </article>
+
+        <article class="surface-panel today-panel">
+          <div class="section-heading">
+            <div><span class="eyebrow">RECENTLY NOTED</span><h2>Side effects</h2></div>
+            <a href="/side-effects">View all</a>
+          </div>
+          <% if (recentSideEffects.length) { %>
+            <div class="today-log-list">
+              <% recentSideEffects.forEach((effect) => { %>
+                <div class="today-log-row">
+                  <span class="severity-marker" aria-hidden="true"><%= effect.severity %></span>
+                  <div><strong><%= effect.effect %></strong><span><%= effect.medicationId?.name || "Medication" %> · <%= new Date(effect.startDate).toLocaleDateString() %></span></div>
+                  <a href="/side-effects/<%= effect._id %>">Details</a>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="empty-state compact-empty">
+              <h3>No side effects recorded</h3>
+              <p>You can document an effect to keep it with your personal record.</p>
+              <a class="btn btn-secondary" href="/side-effects/new">Add a note</a>
+            </div>
+          <% } %>
+        </article>
+      </section>
+
+      <section class="today-next-step">
+        <div><span class="eyebrow">A CLEARER PICTURE</span><h2>Explore your history</h2><p>Choose a date range and review your intake records and reported effects.</p></div>
+        <a href="/dashboard" class="btn btn-secondary">Open analytics →</a>
+      </section>
+      <p class="prototype-note">MyMeds is for personal tracking only. It is not monitored in real time and is not intended for urgent or emergency care.</p>
     <% } %>
   </main>
 </body>

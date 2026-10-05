@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Medication = require("../models/Medication.js");
 const logError = require("../utils/log-error.js");
+const { getMedicationStatus } = require("../utils/medication-status.js");
+const { parseDateOnly } = require("../utils/date-only.js");
 
 // ─── INDEX — List all medications for the current user ───────────────────────
 // Default: show only active. If query param showInactive=true, show all.
@@ -11,11 +13,20 @@ router.get("/", async (req, res) => {
 
     const filter = { userId: req.session.user._id };
     if (!showInactive) {
-      filter.isActive = true; // hide soft-deleted by default
+      filter.isActive = true;
     }
 
     const medications = await Medication.find(filter).sort({ createdAt: -1 });
-    res.render("medications/index.ejs", { medications, showInactive });
+    res.render("medications/index.ejs", {
+      medications,
+      showInactive,
+      medicationStatuses: new Map(
+        medications.map((medication) => [
+          medication._id.toString(),
+          getMedicationStatus(medication),
+        ]),
+      ),
+    });
   } catch (err) {
     logError("Medication list failed", err);
     res.status(500).send("Error loading medications.");
@@ -30,7 +41,7 @@ router.get("/new", (req, res) => {
 // ─── CREATE ───────────────────────────────────────────────────────────────────
 router.post("/", async (req, res) => {
   try {
-    const { name, dosage, frequency, startDate, endDate, instructions } =
+    const { name, dosage, frequency, category, startDate, endDate, instructions } =
       req.body;
 
     // Basic validation
@@ -39,14 +50,27 @@ router.post("/", async (req, res) => {
         error: "Name, dosage, frequency, and start date are required.",
       });
     }
+    const parsedStartDate = parseDateOnly(startDate);
+    const parsedEndDate = endDate ? parseDateOnly(endDate) : null;
+    if (!parsedStartDate || (endDate && !parsedEndDate)) {
+      return res.status(400).render("medications/new.ejs", {
+        error: "Enter valid start and end dates.",
+      });
+    }
+    if (parsedEndDate && parsedEndDate < parsedStartDate) {
+      return res.status(400).render("medications/new.ejs", {
+        error: "The end date cannot be before the start date.",
+      });
+    }
 
     await Medication.create({
       userId: req.session.user._id,
       name,
       dosage,
       frequency,
-      startDate,
-      endDate: endDate || null, // empty string → null (means ongoing)
+      category: category || "",
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
       instructions: instructions || "",
       isActive: true,
     });
@@ -70,7 +94,10 @@ router.get("/:id", async (req, res) => {
       return res.status(404).send("Medication not found.");
     }
 
-    res.render("medications/show.ejs", { medication });
+    res.render("medications/show.ejs", {
+      medication,
+      medicationStatus: getMedicationStatus(medication),
+    });
   } catch (err) {
     logError("Medication loading failed", err);
     res.status(500).send("Error loading medication.");
@@ -89,7 +116,10 @@ router.get("/:id/edit", async (req, res) => {
       return res.status(404).send("Medication not found.");
     }
 
-    res.render("medications/edit.ejs", { medication });
+    res.render("medications/edit.ejs", {
+      medication,
+      medicationStatus: getMedicationStatus(medication),
+    });
   } catch (err) {
     logError("Medication edit form loading failed", err);
     res.status(500).send("Error loading medication for edit.");
@@ -112,17 +142,38 @@ router.put("/:id", async (req, res) => {
       name,
       dosage,
       frequency,
+      category,
       startDate,
       endDate,
       instructions,
       isActive,
     } = req.body;
 
+    const parsedStartDate = parseDateOnly(
+      startDate || medication.startDate.toISOString().slice(0, 10),
+    );
+    const parsedEndDate = endDate ? parseDateOnly(endDate) : null;
+    if (!parsedStartDate || (endDate && !parsedEndDate)) {
+      return res.status(400).render("medications/edit.ejs", {
+        medication,
+        medicationStatus: getMedicationStatus(medication),
+        error: "Enter valid start and end dates.",
+      });
+    }
+    if (parsedEndDate && parsedEndDate < parsedStartDate) {
+      return res.status(400).render("medications/edit.ejs", {
+        medication,
+        medicationStatus: getMedicationStatus(medication),
+        error: "The end date cannot be before the start date.",
+      });
+    }
+
     medication.name = name || medication.name;
     medication.dosage = dosage || medication.dosage;
     medication.frequency = frequency || medication.frequency;
-    medication.startDate = startDate || medication.startDate;
-    medication.endDate = endDate || null;
+    medication.category = category || "";
+    medication.startDate = parsedStartDate;
+    medication.endDate = parsedEndDate;
     medication.instructions = instructions || "";
     // isActive comes from the edit form (checkbox)
     medication.isActive = isActive === "true";

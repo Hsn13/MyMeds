@@ -20,11 +20,7 @@
 
     <div class="detail-card">
       <div class="detail-status">
-        <% if (medication.isActive) { %>
-          <span class="badge badge-active">Active</span>
-        <% } else { %>
-          <span class="badge badge-inactive">Inactive</span>
-        <% } %>
+        <span class="badge <%= medicationStatus === 'Active' ? 'badge-active' : medicationStatus === 'Inactive' || medicationStatus === 'Ended' ? 'badge-inactive' : 'badge-late' %>"><%= medicationStatus %></span>
       </div>
 
       <div class="detail-grid">
@@ -36,6 +32,12 @@
           <span class="detail-label">Frequency</span>
           <span class="detail-value"><%= medication.frequency %></span>
         </div>
+        <% if (medication.category) { %>
+          <div class="detail-item">
+            <span class="detail-label">Personal Category</span>
+            <span class="detail-value"><%= medication.category %></span>
+          </div>
+        <% } %>
         <div class="detail-item">
           <span class="detail-label">Start Date</span>
           <span class="detail-value"><%= medication.startDate.toLocaleDateString('en-US') %></span>
@@ -54,7 +56,9 @@
 
       <!-- Quick links to related data -->
       <div class="detail-actions">
-        <a href="/intake/new?medicationId=<%= medication._id %>" class="btn btn-primary">📋 Log Intake</a>
+        <% if (medicationStatus === 'Active') { %>
+          <a href="/intake/new?medicationId=<%= medication._id %>" class="btn btn-primary">📋 Log Intake</a>
+        <% } %>
         <a href="/side-effects/new?medicationId=<%= medication._id %>" class="btn btn-secondary">⚠️ Report Side Effect</a>
         <a href="/side-effects?medicationId=<%= medication._id %>" class="btn btn-secondary">View Side Effects</a>
       </div>
